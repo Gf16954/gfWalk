@@ -1,0 +1,38 @@
+<resources>
+    <string name="help">
+<![CDATA[
+<b>Tips</b><br/><br/>
+--- Having started a walk recording, you may as well switch to other applications, where you can
+make photos, record video and audio in usual way. The program - working in the background - will
+find and incorporate all of these into the walk. All but the text notes, which can be added into
+the walk only from inside of the program.<br/>
+--- While offline during a walk, point addresses can not be determined. They will be determined on
+the first walk browsing with the Internet connection.<br/>
+--- Use the little known Goggle maps gesture to tilt the map. Touch an area with two fingers and
+drag both fingers upwards. You will like it.<br/>
+--- Option "Show point\'s details" being set, the second line of the point information panel (shows up
+on a point click) looks like this:<br/><font color=#ff0000>
+2:15 10.234 km 6,2 km/h 55,734316° 37,427543° 184 m (+1) ±20 m 5,2 km/h 180° #34</font><br/>
+Which means: walk duration, walked distance, average speed (over the last leg),
+latitude, longitude, altitude (in parenthes - relative to the walk origin), claimed horizontal
+localization accuracy, instantaneous velocity (reported by GPS), instantaneous velocity direction
+(degrees from the North clockwise), point number (walk origin is 0). If any of these is not
+determined it is omitted.<br/>
+--- The whole string could not fit into the smaller devices in the vertical orientation. The
+horizontal orientation might help.<br/>
+--- Don\'t set time (aside from the time zone) during the walk.<br/>
+--- Some devices\' camera software does not discern between the commands to make photo and to record
+video. Choose the needed function inside of the camera program itself.<br/>
+--- In case you have closed the walk unwittingly, you can resume it by clicking on the button with
+the walk\'s number and then on the "Resume" button.<br/>
+--- Press and hold a walk in the walks screen to see the walk\'s information panel. Press and hold an
+artefact on the map to see the artefact in the gallery.<br/>
+--- The program uninstallation does NOT remove your artefacts from the device.
+--- The "Maximum possible speed" setting helps to improve localization reliability. GPS, let alone
+Wi-Fi, localization sometimes leaps wildly. To filter out such leaps, the program ignores movements
+with the speed greater than the value of this setting.<br/>
+--- In a new place, start your first walk in some Wi-Fi enabled place, the map will be downloaded
+faster and chiper then.<br/>
+]]>
+    </string>
+</resources>

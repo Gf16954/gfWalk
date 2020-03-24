@@ -1,0 +1,149 @@
+<resources>
+    <string name="app_name">gfWalk</string>
+    <string name="app_copyright">© 2016, gf &amp; children</string>
+
+    <string name="walk_header">Walk #</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_filter">Filter</string>
+    <string name="action_new">Let\'s walk</string>
+    <string name="action_empty_bin">Empty bin</string>
+    <string name="format_walks_deleted">Walks deleted - %d</string>
+    <string name="format_walk_number_X_is_deleted">The walk #%d is deleted</string>
+    <string name="format_could_not_read_from_file">Failed to read from file %s</string>
+    <string name="format_could_not_write_to_file">Fail to write into file %s</string>
+    <string name="format_file_has_gone">File %s is missing</string>
+    <string name="format_could_not_create_file">Failed to create file %s</string>
+    <string name="format_walk_has_gone">The walk #%d is missing!</string>
+    <string name="action_help">Help</string>
+
+    <string name="title_activity_maps">Walk #</string>
+    <string name="action_camera">Make a photo</string>
+    <string name="action_speech">Record sound</string>
+    <string name="action_text">Write a note</string>
+    <string name="action_video">Record a video</string>
+    <string name="action_pause">Pause recording</string>
+    <string name="action_resume">Resume recording</string>
+    <string name="action_gallery">Show gallery</string>
+    <string name="action_info">Info</string>
+    <string name="action_where_am_i">Where am I?</string>
+    <string name="action_show_entire_route">Show entire route</string>
+    <string name="action_show_afs">Show artefact markers </string>
+    <string name="action_hide_afs">Hide artefact markers </string>
+    <string name="action_show_accuracy_circle">Show accuracy circle</string>
+    <string name="action_hide_accuracy_circle">Hide accuracy circle</string>
+    <string name="action_map_type_satelite">Satelite</string>
+    <string name="action_map_type_terrain">Terrain</string>
+    <string name="action_privacy_policy">Privacy policy</string>
+    <string name="url_privacy_policy">http://gf169.narod.ru/_tbkp/GFWalk-privacy_policy-en.htm</string>
+    <!--string name="url_privacy_policy">goo.gl/tgSLdn</string-->
+    <string name="no_sound_recording_program">There is no sound-recording software installed</string>
+    <string name="format_could_not_create_directory" formatted="false">Failed to create folder %s
+        in folder %s</string>
+    
+    <string name="notification_recording">Recording the walk...</string>
+    <string name="notification_stop_recording">Pause recording</string>
+    <string name="notification_into_walk">Show the walk</string>
+    
+    <string name="no_address">Address is not determined</string>
+
+    <string name="walk_recording_ended">Walk recording finished</string>
+    <string name="waiting_for_GPS">Waiting for location data... If GPS and Wi-Fi is disabled, enable</string>
+    <!--string name="waiting_for_GPS">Waiting for location data... If Location service is disabled, enable</string-->
+    <string name="location_not_defined">Failed to determine location!</string>
+    
+    <string name="title_activity_gallery">Artifacts</string>
+    <string name="nothing_to_show">Nothing to show</string>
+    <string name="action_map">Show map</string>
+    <string name="action_delete_af">Delete</string>
+    <string name="action_make_walk_icon">Use the picture as the walk\'s cover</string>
+    <string name="action_show_comments">Show notes</string>
+    <string name="action_hide_comments">Hide notes</string>
+    <string name="af_delete_mode1">Detach file from the walk without deletion</string>
+    <string name="af_delete_mode2">Delete file</string>
+    <string name="af_deleted">Deleted</string>
+    <string name="af_deleted2">Deleted</string>
+    <string name="af_has_gone">Missing</string>
+    <string name="af_has_gone2">Missing</string>
+    <string name="af_walk_icon_sign">Cover</string>
+    <string name="warning_icon_delete">You are about to delete the walk\'s cover! Don\'t forget to
+        choose another one</string>
+
+    <string name="walk_start_time">Start time</string>
+    <string name="walk_start_place">Start place</string>
+    <string name="walk_duration">Duration</string>
+    <string name="walk_length">Path length</string>
+    <string name="walk_mean_speed">Mean speed</string>
+    <string name="walk_artifacts">Artifacts</string>
+    <string name="walk_comment">Comment</string>
+
+    <string name="action_see_at_map">Go to map</string>
+    <string name="action_see_in_gallery">Go to gallery</string>
+    <string name="action_walk_resume">Resume</string>
+    <string name="action_walk_to_bin">Move to bin</string>
+    <string name="action_walk_from_bin">Restore from bin</string>
+    <string name="action_walk_delete">Delete permanently</string>
+    <string name="format_walk_delete_menu_header">Walks to delete: %d</string>
+
+    <string name="walk_delete_mode1">Keep all artefacts</string>
+    <string name="walk_delete_mode2">Keep pictures and videos</string>
+    <string name="walk_delete_mode3">Delete EVERYTHING</string>
+
+    <string name="format_walk_resume_warning_years">It has been %.1f years since the end of the
+        walk. Resume anyway?</string>
+    <string name="format_walk_resume_warning_months">It has been %.1f months since the end of the
+        walk. Resume anyway?</string>
+    <string name="format_walk_resume_warning_days">It has been %.1f days since the end of the walk.
+        Resume anyway?</string>
+
+    <string name="filter_show_walks">Show walks...</string>
+    <string name="filter_not_in_bin_only">NOT in bin only</string>
+    <string name="filter_in_bin_only">in bin only</string>
+    <string name="filter_all">all</string>
+    <string name="filter_comment_contains">and comment contains this:</string>
+    <string name="filter_apply">Apply</string>
+    <string name="filter_clear">Default</string>
+
+    <string name="global_settings_header">General settings</string>
+    <string name="walk_settings_header">Settings of the walk #</string>
+
+    <string name="title_recording_settings">Walk recording settings</string>
+    <string name="title_recording_max_seconds_between_points">Maximum interval between points,
+        seconds</string>
+    <string name="summary_recording_max_seconds_between_points">New points are created with this
+        frequency. Default is 60</string>
+    <string name="title_recording_min_meters_between_points">Minimum distance between points,
+        meters</string>
+    <string name="summary_recording_min_meters_between_points">The next point is not created if
+        closer then this distance to the previous one. Default is 10</string>
+    <string name="title_recording_min_location_accuracy">Minimal acceptable location accuracy,
+        meters</string>
+    <string name="summary_recording_min_location_accuracy">The point is not created if its
+        localization uncertainty is greater than this value. Default is 50</string>
+    <string name="title_recording_location_request_interval">Localization interval, seconds</string>
+    <string name="summary_recording_location_request_interval">The less the value the more accurate
+        your position on the map is and the faster the battery is drained. Default is 10</string>
+    <string name="title_recording_max_possible_speed">Maximum possible speed, km/h</string>
+    <string name="summary_recording_max_possible_speed">Set into 400 riding a high-speed train,
+        1000 - a plain, inquire of a driver - a spacecraft. Default is 250</string>
+
+    <string name="title_map_settings">Map settings</string>
+    <string name="title_map_show_address_in_markers">Show point\'s address</string>
+    <string name="summary_map_show_address_in_markers">Default is Yes</string>
+    <string name="title_map_show_details_in_markers">Show point\'s details</string>
+    <string name="summary_map_show_details_in_markers">Default is No</string>
+    <string name="title_map_show_netto_values_in_markers">Show point\'s netto values</string>
+    <string name="summary_map_show_netto_values_in_markers">Netto values are total duration and
+        kilometers excluding the walk recording pauses. Are shown in parentheses. Default is No</string>
+    <string name="title_map_animated_cursor">Animate current position marker</string>
+    <string name="summary_map_animated_cursor">Increases battery consumption. Default is No</string>
+
+    <string name="title_gallery_settings">Gallery settings</string>
+    <string name="title_gallery_ribbon_height">The lower ribbon height, percentage of display height</string>
+    <string name="summary_gallery_ribbon_height">Default is 10</string>
+
+    <string name="default_word">Default</string>
+    <string name="set_word">, set</string>
+
+    <string name="press_plus">Press + in the action bar to start walk recording</string>
+    <string name="goodbye">Goodbye :( Can\'t work without permissions</string>
+</resources>

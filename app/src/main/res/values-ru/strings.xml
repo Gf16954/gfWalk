@@ -1,0 +1,150 @@
+<resources>
+    <string name="app_name">gfWalk</string>
+    <string name="app_copyright">© 2016, gf &amp; children</string>
+
+    <string name="walk_header">Прогулка #</string>
+    <string name="action_settings">Настройки</string>
+    <string name="action_filter">Фильтр</string>
+    <string name="action_new">Начать прогулку</string>
+    <string name="action_empty_bin">Очистить корзину</string>
+    <string name="format_walks_deleted">Удалено прогулок - %d</string>
+    <string name="format_walk_number_X_is_deleted">Прогулка #%d удалена</string>
+    <string name="format_could_not_read_from_file">Не удалось прочесть файл %s</string>
+    <string name="format_could_not_write_to_file">Не удалось записать файл %s</string>
+    <string name="format_file_has_gone">Файл %s пропал</string>
+    <string name="format_could_not_create_file">Файл %s не создался</string>
+    <string name="format_walk_has_gone">Прогулка #%d пропала!</string>
+    <string name="action_help">Справка</string>
+
+    <string name="title_activity_maps">Прогулка #</string>
+    <string name="action_camera">Фото</string>
+    <string name="action_speech">Речь</string>
+    <string name="action_text">Текст</string>
+    <string name="action_video">Видео</string>
+    <string name="action_pause">Приостановить запись</string>
+    <string name="action_resume">Продолжить запись</string>
+    <string name="action_gallery">В галерею</string>
+    <string name="action_info">Инфо</string>
+    <string name="action_where_am_i">Где я?</string>
+    <string name="action_show_entire_route">Показать весь маршрут</string>
+    <string name="action_show_afs">Показывать маркеры артефактов</string>
+    <string name="action_hide_afs">HЕ показывать маркеры артефактов</string>
+    <string name="action_show_accuracy_circle">Показывать круг точности</string>
+    <string name="action_hide_accuracy_circle">НЕ показывать круг точности</string>
+    <string name="action_map_type_satelite">Спутник</string>
+    <string name="action_map_type_terrain">Рельеф</string>
+    <string name="action_privacy_policy">Политика конфиденциальности</string>
+    <string name="url_privacy_policy">http://gf169.narod.ru/_tbkp/GFWalk-privacy_policy-ru.htm</string>
+    <string name="no_sound_recording_program">На устройстве не установлевно ни одной
+        звукозаписывающей программы</string>
+    <string name="format_could_not_create_directory" formatted="false">Не удалось создать подкаталог
+        %s каталога %s</string>
+
+    <string name="notification_recording">Идет запись прогулки</string>
+    <string name="notification_stop_recording">Приостановить запись</string>
+    <string name="notification_into_walk">В прогулку</string>
+
+    <string name="no_address">Нет адреса</string>
+
+    <string name="walk_recording_ended">Запись прогулки закончена</string>
+    <string name="waiting_for_GPS">Ждем геоданные... Если GPS и Wi-Fi выключены, включите</string>
+    <!--string name="waiting_for_GPS">Ждем геоданные... Если Геоданные выключены, включите</string-->
+    <string name="location_not_defined">Положение не определено!</string>
+    
+    <string name="title_activity_gallery">Артефакты</string>
+    <string name="nothing_to_show">Нечего показывать</string>
+    <string name="action_map">В карту</string>
+    <string name="action_delete_af">Удалить артефакт</string>
+    <string name="action_make_walk_icon">Назначить текущую картинку иконкой прогулки</string>
+    <string name="action_show_comments">Показывать комментарии</string>
+    <string name="action_hide_comments">НЕ показывать комментарии</string>
+    <string name="af_delete_mode1">Только отцепить файл от прогулки</string>
+    <string name="af_delete_mode2">Удалить файл</string>
+    <string name="af_deleted">Удален</string>
+    <string name="af_deleted2">Удалены</string>
+    <string name="af_has_gone">Пропал</string>
+    <string name="af_has_gone2">Пропали</string>
+    <string name="af_walk_icon_sign">Иконка</string>
+    <string name="warning_icon_delete">Вы удаляете иконку прогулки! Не забудьте назначить новую</string>
+
+    <string name="walk_start_time">Время начала</string>
+    <string name="walk_start_place">Место начала</string>
+    <string name="walk_duration">Продолжительность</string>
+    <string name="walk_length">Длина пути</string>
+    <string name="walk_mean_speed">Средняя скорость</string>
+    <string name="walk_artifacts">Артефакты</string>
+    <string name="walk_comment">Комментарий</string>
+
+    <string name="action_see_at_map">Посмотреть на карте</string>
+    <string name="action_see_in_gallery">Посмотреть в галерее</string>
+    <string name="action_walk_resume">Продолжить прогулку</string>
+    <string name="action_walk_to_bin">В корзину</string>
+    <string name="action_walk_from_bin">Извлечь из корзины</string>
+    <string name="action_walk_delete">Удалить насовсем</string>
+    <string name="format_walk_delete_menu_header">Будет удалено прогулок: %d</string>
+
+    <string name="walk_delete_mode1">Оставить все артефакты</string>
+    <string name="walk_delete_mode2">Оставить фото и видео</string>
+    <string name="walk_delete_mode3">Удалить ВСЁ</string>
+
+    <string name="format_walk_resume_warning_years">С окончания прогулки прошло %.1f лет.
+        Все равно продолжить?</string>
+    <string name="format_walk_resume_warning_months">С окончания прогулки прошло %.1f месяцев.
+        Все равно продолжить?</string>
+    <string name="format_walk_resume_warning_days">С окончания прогулки прошло %.1f дней.
+        Все равно продолжить?</string>
+
+    <string name="filter_show_walks">Показывать прогулки...</string>
+    <string name="filter_not_in_bin_only">только НЕ в корзине</string>
+    <string name="filter_in_bin_only">только в корзине</string>
+    <string name="filter_all">все</string>
+    <string name="filter_comment_contains">и у которых комментарий содержит</string>
+    <string name="filter_apply">Применить</string>
+    <string name="filter_clear">По умолчанию</string>
+
+    <string name="global_settings_header">Глобальные настройки</string>
+    <string name="walk_settings_header">Настройки прогулки #</string>
+
+    <string name="title_recording_settings">Параметры процесса записи прогулки</string>
+    <string name="title_recording_max_seconds_between_points">Максимальный интервал между точками,
+        секунды</string>
+    <string name="summary_recording_max_seconds_between_points">С этой частотой программа будет
+        создавать точки. По умолчанию 60</string>
+    <string name="title_recording_min_meters_between_points">Минимальное расстояние между точками,
+        метры</string>
+    <string name="summary_recording_min_meters_between_points">Если создаваемая точка окажется ближе
+        к предыдущей, чем эта величина, она не будет создана. По умолчанию 10</string>
+    <string name="title_recording_min_location_accuracy">Минимально допустимая точность определения
+        положения, метры</string>
+    <string name="summary_recording_min_location_accuracy">Если точность определения положения точки
+        ниже этой величины, точка не создается. По умолчанию 50</string>
+    <string name="title_recording_location_request_interval">Интервал между определениями вашего
+        местоположения, секунды</string>
+    <string name="summary_recording_location_request_interval">Чем меньше, тем точнее отражается на
+        карте ваше положение и тем больше расход батареи. По умолчанию 10</string>
+    <string name="title_recording_max_possible_speed">Максимально возможная скорость, км/час</string>
+    <string name="summary_recording_max_possible_speed">Установите 400 при поездке на скоростном
+        поезде, 1000 - в самолете, в ракете - спросите у водителя. По умолчанию 250</string>
+
+    <string name="title_map_settings">Параметры показа прогулки на карте</string>
+    <string name="title_map_show_address_in_markers">Показывать адрес в маркерах</string>
+    <string name="summary_map_show_address_in_markers">По умолчанию Да</string>
+    <string name="title_map_show_details_in_markers">Показывать подробные данные точек</string>
+    <string name="summary_map_show_details_in_markers">По умолчанию Нет</string>
+    <string name="title_map_show_netto_values_in_markers">Показывать нетто-величины в маркерах</string>
+    <string name="summary_map_show_netto_values_in_markers">Нетто-величины это продолжительность и
+        километраж, вычисленные с учетом приостановок записи прогулки. Будут показаны в скобках.
+        По умолчанию Нет</string>
+    <string name="title_map_animated_cursor">Анимировать маркер текущего положения</string>
+    <string name="summary_map_animated_cursor">Увеличивает расход батареи. По умолчанию Нет</string>
+
+    <string name="title_gallery_settings">Параметры показа прогулки в галерее</string>
+    <string name="summary_gallery_ribbon_height">По умолчанию 10</string>
+    <string name="title_gallery_ribbon_height">Высота нижней ленты в процентах от высоты экрана</string>
+
+    <string name="default_word">По умолчанию</string> <!-- Пробелы урезает! -->
+    <string name="set_word">, установлено</string>
+
+    <string name="press_plus">Нажмите + в строке меню чтобы начать запись прогулки</string>
+    <string name="goodbye">До свиданья:( Не могу работать без разрешений</string>
+</resources>

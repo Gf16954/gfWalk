@@ -1,0 +1,3 @@
+<resources>
+    <string name="waiting_for_GPS">Waiting for location data... If Location service is disabled, enable</string>
+</resources>

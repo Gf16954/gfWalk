@@ -1,0 +1,34 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingLeft="@dimen/main_horizontalMargin"
+    android:paddingRight="@dimen/main_horizontalMargin"
+    android:paddingTop="@dimen/main_verticalMargin"
+    android:paddingBottom="@dimen/main_verticalMargin"
+    android:background="@color/main_normalBackground"
+    tools:context=".MyActivity"
+    >
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/horizontalScrollView1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        >
+        <ListView
+            android:id="@+id/listViewWalks"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:choiceMode="singleChoice"
+            />
+    </LinearLayout>
+    <TextView
+        android:id="@+id/textViewEmptyScreen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal|center_vertical"
+        android:textSize="50dp"
+        android:text="@string/press_plus"/>
+</RelativeLayout>
+
+<!--  android:listSelector="@drawable/ic_list_selector" -->

@@ -1,0 +1,3 @@
+<resources>
+    <string name="waiting_for_GPS">Ждем геоданные... Если Геоданные выключены, включите</string>
+</resources>

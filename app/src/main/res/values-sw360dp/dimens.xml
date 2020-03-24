@@ -1,0 +1,9 @@
+<resources>
+    <dimen name="textSize1">15dp</dimen> <!-- Не зависит от размера системного шрифта -->
+    <dimen name="listviewitem_horisontalPadding">8dp</dimen>
+    <dimen name="walkinfo_startPlaceWidth">220dp</dimen>
+    <dimen name="walkinfo_paddingVert2">10dp</dimen>
+    <dimen name="walkinfo_textSize3">14dp</dimen>
+
+    <integer name="line_width">2</integer>
+</resources>

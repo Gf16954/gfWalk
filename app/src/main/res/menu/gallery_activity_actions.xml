@@ -1,0 +1,48 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+      xmlns:res-auto="http://schemas.android.com/apk/res-auto" >
+    <item android:id="@+id/action_map"
+          android:title="@string/action_map"
+          res-auto:showAsAction="always"
+          android:icon="@drawable/ic_action_map"
+          android:enabled="true"
+          android:visible="true"
+        />
+    <item android:id="@+id/action_delete_af"
+          android:title="@string/action_delete_af"
+          res-auto:showAsAction="always"
+          android:icon="@drawable/ic_action_to_bin"
+          android:enabled="true"
+          android:visible="true"
+        />
+    <item android:id="@+id/action_make_walk_icon"
+          android:title="@string/action_make_walk_icon"
+          res-auto:showAsAction="never"
+          android:enabled="true"
+          android:visible="true"
+        />
+    <item android:id="@+id/action_show_comments"
+          android:title="@string/action_show_comments"
+          res-auto:showAsAction="never"
+          android:enabled="true"
+          android:visible="true"
+        />
+    <item android:id="@+id/action_info"
+          android:title="@string/action_info"
+          res-auto:showAsAction="never"
+          android:enabled="true"
+          android:visible="true"
+        />
+    <item android:id="@+id/action_settings"
+          android:title="@string/action_settings"
+          res-auto:showAsAction="never"
+          android:enabled="true"
+          android:visible="true"
+        />
+    <item android:id="@+id/action_help"
+        android:title="@string/action_help"
+        res-auto:showAsAction="never"
+        android:enabled="true"
+        android:visible="true"
+        />
+</menu>
+

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    >
+
+    <ImageView
+        android:id="@+id/imageViewIcon"
+        android:src="@drawable/ic_gallery_border"
+        android:layout_width="@dimen/listviewitem_height1"
+        android:paddingLeft="@dimen/listviewitem_horisontalPadding"
+        android:paddingTop="@dimen/listviewitem_verticalPadding"
+        android:paddingBottom="@dimen/listviewitem_verticalPadding"
+        android:layout_height="@dimen/listviewitem_height1"
+        />
+    <Button
+        android:id="@+id/buttonWalkId"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/listviewitem_height1"
+        android:layout_toRightOf="@id/imageViewIcon"
+        android:textSize="@dimen/listviewitem_textSize1"
+        android:textStyle="bold"
+        android:shadowColor="#FF0000"
+        android:shadowDx="2"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:text="#999"/> <!-- Без последних двух строка не кликается -->
+    <TextView
+        android:id="@+id/textViewString1"
+        android:paddingLeft="2dp"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/listviewitem_height2"
+        android:layout_toRightOf="@id/buttonWalkId"
+        android:textSize="@dimen/listviewitem_textSize1"
+        android:textColor="#000000"
+        android:textStyle="bold"
+        android:text="ww"/>
+    <TextView
+        android:id="@+id/textViewString2"
+        android:paddingLeft="4dp"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/listviewitem_height2"
+        android:layout_toRightOf="@id/textViewString1"
+        android:singleLine="true"
+        android:textSize="@dimen/listviewitem_textSize1"
+        android:textColor="#0000FF"
+        android:text="qq eeeeee ffffffffffffff"/>
+    <TextView
+        android:id="@+id/textViewString3"
+        android:paddingLeft="2dp"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/listviewitem_height3"
+        android:layout_alignLeft="@id/textViewString1"
+        android:layout_alignStart="@id/textViewString1"
+        android:layout_below="@id/textViewString1"
+        android:singleLine="true"
+        android:textSize="@dimen/listviewitem_textSize2"
+        android:textColor="#000000"
+        android:text="ee"/> <!--        android:typeface="monospace" -->
+</RelativeLayout>
+

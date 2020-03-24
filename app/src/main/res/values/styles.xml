@@ -1,0 +1,28 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="@android:style/Theme.Holo.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <!-- Меню без разделителей -->
+        <!--item name="android:dividerHorizontal">@drawable/ic_action_map</item>
+        <item name="dividerHorizontal">@drawable/ic_action_map</item-->
+        <!-- Неправильно работает, перенесено в java
+        <item name="android:popupMenuStyle">@style/Theme.AppCompat.Light.DarkActionBar</item>
+    		<item name="android:divider">@null</item>
+        <item name="android:dividerHorizontal">@null</item>
+        -->
+    </style>
+
+    <style name="FullscreenTheme" parent="AppTheme">
+        <item name="android:actionBarStyle">@style/FullscreenActionBarStyle</item>
+        <item name="android:windowActionBarOverlay">true</item>
+        <item name="android:windowBackground">@null</item>
+        <item name="metaButtonBarStyle">?android:attr/buttonBarStyle</item>
+        <item name="metaButtonBarButtonStyle">?android:attr/buttonBarButtonStyle</item>
+    </style>
+
+    <style name="FullscreenActionBarStyle" parent="android:Widget.Holo.ActionBar">
+        <item name="android:background">@color/black_overlay</item>
+    </style>
+
+</resources>

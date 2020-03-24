@@ -1,0 +1,28 @@
+<resources>
+    <dimen name="main_horizontalMargin">0dp</dimen>
+    <dimen name="main_verticalMargin">0dp</dimen>
+    <dimen name="textSize1">10dp</dimen> <!-- Не зависит от размера системного шрифта -->
+    <dimen name="textSize2">20sp</dimen> <!-- Зависит -->
+
+    <dimen name="listviewitem_horisontalPadding">4dp</dimen>
+    <dimen name="listviewitem_verticalPadding">4dp</dimen>
+    <dimen name="listviewitem_height1">50dp</dimen>
+    <dimen name="listviewitem_height2">26dp</dimen>
+    <dimen name="listviewitem_height3">22dp</dimen>
+    <dimen name="listviewitem_textSize1">20dp</dimen>
+    <dimen name="listviewitem_textSize2">16dp</dimen>
+
+    <dimen name="walkinfo_commentBoxHeight">50dp</dimen>
+    <dimen name="walkinfo_startPlaceWidth">210dp</dimen>
+    <dimen name="walkinfo_paddingVert1">10dp</dimen>
+    <dimen name="walkinfo_paddingHor1">10dp</dimen>
+    <dimen name="walkinfo_paddingVert2">1dp</dimen>
+    <dimen name="walkinfo_buttonHeight">35dp</dimen>
+    <dimen name="walkinfo_afKindIconWidth">20dp</dimen>
+    <dimen name="walkinfo_textSize1">15dp</dimen>
+    <dimen name="walkinfo_textSize3">13dp</dimen>
+
+    <integer name="line_width">1</integer>
+    <integer name="text_on_bmp_height">25</integer> <!-- % -->
+    <integer name="text_on_bmp_padding">5</integer> <!-- % -->
+</resources>

@@ -1,0 +1,24 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+    <item android:id="@+id/header"
+          android:title="@string/format_walk_delete_menu_header"
+          android:enabled="false"
+        />
+    <item android:id="@+id/mode1"
+          android:title="@string/walk_delete_mode1"
+        />
+    <item android:id="@+id/space_item1"
+          android:title=""
+          android:enabled="false"
+        />
+    <item android:id="@+id/mode2"
+          android:title="@string/walk_delete_mode2"
+        />
+    <item android:id="@+id/space_item2"
+          android:title=""
+          android:enabled="false"
+        />
+    <item android:id="@+id/mode3"
+          android:title="@string/walk_delete_mode3"
+        />
+</menu>
+

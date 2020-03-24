@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/walkinfo_paddingHor1"
+        android:layout_marginRight="@dimen/walkinfo_paddingHor1"
+        android:layout_marginTop="@dimen/walkinfo_paddingVert1"
+        android:layout_marginBottom="@dimen/walkinfo_paddingVert1"
+        >
+
+        <TextView
+            android:id="@+id/textViewHelp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingRight="@dimen/walkinfo_paddingHor1"
+            android:textSize="@dimen/textSize2"
+            android:textColor="@color/walkinfo_color2"
+            android:inputType="textMultiLine"
+            android:text=
+"aaaaa
+bbbbb"
+            />
+    </LinearLayout>
+</ScrollView>

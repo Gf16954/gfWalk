@@ -1,0 +1,12 @@
+<resources>
+    <dimen name="listviewitem_horisontalPadding">16dp</dimen>
+    <dimen name="listviewitem_height1">64dp</dimen>
+    <dimen name="listviewitem_height2">32dp</dimen>
+    <dimen name="listviewitem_height3">26dp</dimen>
+    <dimen name="listviewitem_textSize1">26dp</dimen>
+    <dimen name="listviewitem_textSize2">20dp</dimen>
+    <dimen name="walkinfo_startPlaceWidth">300dp</dimen>
+    <dimen name="walkinfo_paddingVert2">15dp</dimen>
+    <dimen name="walkinfo_buttonHeight">45dp</dimen>
+    <dimen name="walkinfo_textSize3">15dp</dimen>
+</resources>
