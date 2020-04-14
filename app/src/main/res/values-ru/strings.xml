@@ -25,7 +25,6 @@
     <string name="action_resume">Продолжить запись</string>
     <string name="action_gallery">В галерею</string>
     <string name="action_info">Инфо</string>
-    <string name="action_where_am_i">Где я?</string>
     <string name="action_show_entire_route">Показать весь маршрут</string>
     <string name="action_show_afs">Показывать маркеры артефактов</string>
     <string name="action_hide_afs">HЕ показывать маркеры артефактов</string>
@@ -34,6 +33,11 @@
     <string name="action_map_type_satelite">Спутник</string>
     <string name="action_map_type_terrain">Рельеф</string>
     <string name="action_privacy_policy">Политика конфиденциальности</string>
+    <string name="action_turn_whereami_on">Показывать текущее положение</string>
+    <string name="action_turn_whereami_off">Не показывать текущее положение</string>
+    <string name="action_turn_live_map_on">Живая карта</string>
+    <string name="action_turn_Live_map_off">Мертвая карта</string>
+
     <string name="url_privacy_policy">http://gf169.narod.ru/_tbkp/GFWalk-privacy_policy-ru.htm</string>
     <string name="no_sound_recording_program">На устройстве не установлевно ни одной
         звукозаписывающей программы</string>
@@ -125,6 +129,11 @@
     <string name="title_recording_max_possible_speed">Максимально возможная скорость, км/час</string>
     <string name="summary_recording_max_possible_speed">Установите 400 при поездке на скоростном
         поезде, 1000 - в самолете, в ракете - спросите у водителя. По умолчанию 250</string>
+    <string name="title_recording_min_possible_speed">Скорость стояния, км/час</string>
+    <string name="summary_recording_min_possible_speed">При движении со скоростью МЕНЬШЕЙ этой программа
+        будет считать, что вы стоите, и стрелка маркера текущего положения будет указывать направление
+        вашего взгляда, а не направление движения - ЕСЛИ В ВАШЕМ ТЕЛЕФОНЕ ЕСТЬ ГЕОМАГНИТНЫЙ ДАТЧИК.
+        По умолчанию 2.4</string>
 
     <string name="title_map_settings">Параметры показа прогулки на карте</string>
     <string name="title_map_show_address_in_markers">Показывать адрес в маркерах</string>
@@ -135,8 +144,8 @@
     <string name="summary_map_show_netto_values_in_markers">Нетто-величины это продолжительность и
         километраж, вычисленные с учетом приостановок записи прогулки. Будут показаны в скобках.
         По умолчанию Нет</string>
-    <string name="title_map_animated_cursor">Анимировать маркер текущего положения</string>
-    <string name="summary_map_animated_cursor">Увеличивает расход батареи. По умолчанию Нет</string>
+    <string name="title_map_cursor_pulsations_per_second">Число пульсаций маркера текущего положения в секунду</string>
+    <string name="summary_map_cursor_pulsations_per_second">0 - без пульсации, по умолчанию 1</string>
 
     <string name="title_gallery_settings">Параметры показа прогулки в галерее</string>
     <string name="summary_gallery_ribbon_height">По умолчанию 10</string>

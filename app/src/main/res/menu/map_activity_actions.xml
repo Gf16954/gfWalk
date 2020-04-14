@@ -50,7 +50,13 @@
           android:visible="false"
         />
     <item android:id="@+id/action_where_am_i"
-          android:title="@string/action_where_am_i"
+          android:title="@string/action_turn_whereami_on"
+          res-auto:showAsAction="never"
+          android:enabled="true"
+          android:visible="false"
+        />
+    <item android:id="@+id/action_live_map"
+          android:title="@string/action_turn_live_map_on"
           res-auto:showAsAction="never"
           android:enabled="true"
           android:visible="false"

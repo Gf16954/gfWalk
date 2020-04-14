@@ -18,8 +18,8 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.provider.MediaStore;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.LocalBroadcastManager;
+import androidx.core.app.NotificationCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -86,11 +86,12 @@ public class WalkRecorder extends Service implements
     Clock clock;
 
     int locationRequestInterval=3; // Будет взят из настроек
-    int locationRequestFastestInterval=3;
+    int locationRequestFastestInterval=1;
     int locationRequestIntervalIni=1;
     int locationRequestPriority=LocationRequest.PRIORITY_HIGH_ACCURACY;
     final float ACCURACY_FACTOR=0.5F;  // TODO: Уточнить !
     int maxPossibleSpeed=1000; // км/час
+    int waitingThreadTimeout = 2000;
 
     int activityRecognitionIntervalK=1; // * locationRequestInterval !!!
     ARState curARState;
@@ -249,11 +250,11 @@ public class WalkRecorder extends Service implements
                 curARState = s;
                 maxPossibleSpeed = Math.max(maxPossibleSpeed, curARState.maxPossibleSpeed); // max !!!
             }
-            return 0;
+            return Service.START_STICKY_COMPATIBILITY;
         }
         if (intent==null) {  // Чтобы не отваливалось после отвала MapActivity. Не нужно?
             stop(1);
-            return 0;
+            return Service.START_STICKY_COMPATIBILITY;
         }
         Bundle extras=intent.getExtras();
         final boolean isLastPoint=extras.getBoolean("isLastPoint"); // Локальная !  Больше точек не будет, надо убить сервис
@@ -270,7 +271,7 @@ public class WalkRecorder extends Service implements
         if (!locationServiceIsReady) {
             if (isLastPoint) {
                 stop(6);
-                return 0;
+                return Service.START_STICKY_COMPATIBILITY;
             } else {
                 if (savedIntent==null) {  // Самый первый вызов
                     this.savedIntent = intent; // Чтобы повторить первый вызов когда появится GPS
@@ -279,9 +280,12 @@ public class WalkRecorder extends Service implements
                             new Runnable() {
                                 @Override
                                 public void run() {
+                                    toast(getResources().getString(R.string.waiting_for_GPS),
+                                            Toast.LENGTH_SHORT);
                                     boolean interrupted = false;
                                     while (!interrupted && !locationServiceIsReady) {
-                                        interrupted = Utils.sleep(5000, true);
+                                        interrupted = Utils.sleep(waitingThreadTimeout, true);
+
                                         if (!locationServiceIsReady) {
                                             toast(getResources().getString(R.string.waiting_for_GPS),
                                                     Toast.LENGTH_SHORT);
@@ -292,7 +296,7 @@ public class WalkRecorder extends Service implements
                             , "gfWaitingForGPS");
                     waitingThread.start();
                 }
-                return 0;
+                return Service.START_STICKY_COMPATIBILITY;
             }
         }
         callNumber++;
@@ -340,9 +344,9 @@ public class WalkRecorder extends Service implements
                                 if (lastGoodLocation2.getTime()==prevLocation.getTime()) {
                                     // Не было onLocationChange - в метро
                                     if (System.currentTimeMillis()-prevLocation.getTime()>
-                                        locationRequestInterval*1000*2) {
+                                        Math.max(locationRequestInterval,locationRequestFastestInterval)*1000*2) {
                                         if (curLocationIsOK>=0) {
-                                            curLocationIsOK = -1;  // Пропал GFPS и остальное - ничего не получаем
+                                            curLocationIsOK = -1;  // Пропал GPS и остальное - ничего не получаем
                                             drawCurPosMarker();
                                         }
                                     }
@@ -381,7 +385,7 @@ public class WalkRecorder extends Service implements
                         Utils.logD(TAG, "Resident thread is interrupted");
                     }
                 },threadName).start();
-        return 0;
+        return Service.START_STICKY_COMPATIBILITY;
     }
     @Override
     public void onDestroy() {
@@ -434,12 +438,12 @@ public class WalkRecorder extends Service implements
 //            toast("onConnected: googleApiClient==null !!!", Toast.LENGTH_LONG);
             return;
         }
-        requestLocationUpdates(locationRequestIntervalIni); // Начальные, для определения состояния - все равно 5 сек
+        requestLocationUpdates(locationRequestIntervalIni); // Начальные, для определения состояния
     }
     public void requestLocationUpdates(int interval) {
-        LocationRequest locationRequest=new LocationRequest();
+        LocationRequest locationRequest=LocationRequest.create();
         locationRequest.setInterval(interval * 1000);
-        locationRequest.setFastestInterval(locationRequestFastestInterval);
+        locationRequest.setFastestInterval(locationRequestFastestInterval * 1000);
         locationRequest.setPriority(locationRequestPriority);
         LocationServices.FusedLocationApi.requestLocationUpdates(
                 googleApiClient, locationRequest, this);
@@ -509,7 +513,7 @@ public class WalkRecorder extends Service implements
                 }
             }
             if (ii<3) {
-                curLocationIsOK=0;
+                curLocationIsOK=0;  // Плохая :(
                 isStill=false;
             }
         }
@@ -537,6 +541,7 @@ public class WalkRecorder extends Service implements
                 }
             }
         }
+
         drawCurPosMarker(); // Рисуем в любом случае
 
         if (locationServiceIsReady && !mockLocation) {  // Если изменилась настройка

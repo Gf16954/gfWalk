@@ -424,8 +424,11 @@ public class Utils {
             neededPermissions.clear();
             for (String permission : packageInfo.requestedPermissions) {
                 PermissionInfo permissionInfo = packageManager.getPermissionInfo(permission, PackageManager.GET_META_DATA);
-                if (permissionInfo.protectionLevel != PermissionInfo.PROTECTION_DANGEROUS)
-                    continue;
+//                if (permissionInfo.protectionLevel != PermissionInfo.PROTECTION_DANGEROUS)
+                if ((permissionInfo.protectionLevel & PermissionInfo.PROTECTION_MASK_BASE) !=
+                        PermissionInfo.PROTECTION_DANGEROUS &&
+                     (permissionInfo.protectionLevel & PermissionInfo.PROTECTION_FLAG_PRE23) != 0
+                ) continue;
                 if (curActivity.checkCallingOrSelfPermission(permission) == PackageManager.PERMISSION_GRANTED)
                     continue;
                 neededPermissions.add(permission);

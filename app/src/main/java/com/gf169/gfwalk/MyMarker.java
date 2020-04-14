@@ -20,6 +20,7 @@ import android.net.Uri;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.util.DisplayMetrics;
+import android.util.Log;
 
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -37,6 +38,7 @@ public class MyMarker {
     static final int MICRO_THUMBNAIL_HEIGHT=96; // x 96
 
     static final float MARKER_ROTATION=0.001F;
+    static final long COMPAS_INTERVAL=100;  // Частота опроса компас и поворота маркера текущего положения
 
     static Activity curActivity;
     static Handler handler;
@@ -51,7 +53,7 @@ public class MyMarker {
         int textCorner; // 0 - в центре, 1 - левый верхний угол, 2 - правый верхний, 3 - правый нижний, 4 - левый нижний
         float alpha;
         long animInterval; // Промежуток между сменой кадров, мс, 0 - без анимации
-        long animDuration; // Продолжительность анимации, мс, 0 - без конца
+        long animDuration; // Продолжительность анимации, мс, 0 - без конца НЕ ИСПОЛЬЗУЕТСЯ
         int overlayRes;
         int bitmapIni;
 
@@ -169,6 +171,30 @@ public class MyMarker {
             new MyMarkerOptions(new int[]{R.drawable.ic_point_end_passive},0.012F,2,5,0.5F,0.5F,0,0.5F,0,0,0,0),
             new MyMarkerOptions(new int[]{R.drawable.ic_point_default_passive},0.03F,3,6,0.5F,0.5F,0,1F,0,0,0,0), // Timer
             new MyMarkerOptions(new int[]{R.drawable.ic_point_default_with_afs},0.03F,3,6,0.5F,0.5F,0,1F,0,0,0,0), // Timer
+            new MyMarkerOptions(new int[]{
+                    R.drawable.ic_cur_pos71,
+                    R.drawable.ic_cur_pos72,
+                    R.drawable.ic_cur_pos73,
+                    R.drawable.ic_cur_pos74,
+                    R.drawable.ic_cur_pos75,
+                    R.drawable.ic_cur_pos76,
+                    R.drawable.ic_cur_pos77,
+                    R.drawable.ic_cur_pos78,
+                    R.drawable.ic_cur_pos79,
+                    R.drawable.ic_cur_pos80,
+                    R.drawable.ic_cur_pos81,
+                    R.drawable.ic_cur_pos80,
+                    R.drawable.ic_cur_pos79,
+                    R.drawable.ic_cur_pos78,
+                    R.drawable.ic_cur_pos77,
+                    R.drawable.ic_cur_pos76,
+                    R.drawable.ic_cur_pos75,
+                    R.drawable.ic_cur_pos74,
+                    R.drawable.ic_cur_pos73,
+                    R.drawable.ic_cur_pos72,
+                    R.drawable.ic_cur_pos71,
+            },
+                    0.030F,4,6,0.5F,0.5F,0,0.5F,100,0,0,6), // Текущее положение c направлением
     };
     static DisplayMetrics metrics=Resources.getSystem().getDisplayMetrics();
     static BitmapFactory.Options bfo = new BitmapFactory.Options();
@@ -179,7 +205,7 @@ public class MyMarker {
         final GoogleMap map,
         final Vector<Marker> markers,
         final int markerIndex,
-        int markerKind,
+        final int markerKind,
         Location location,
         String title,
         String snippet,
@@ -213,27 +239,42 @@ public class MyMarker {
             new Runnable() {
                 @Override
                 public void run() {
-                    if (markerIndex < 0) {
+                    int markerIndex2=markerIndex;
+                    if (markerIndex2<0) {
                         markers.add(map.addMarker(markerOptions));
+                        markerIndex2=markers.size()-1;
                     } else {
-                        if (removeOld && markers.get(markerIndex) != null) {
-                            killMarker(markers,markerIndex);
+                        if (removeOld && markers.get(markerIndex2) != null) {
+                            killMarker(markers,markerIndex2);
                         }
-                        markers.set(markerIndex, map.addMarker(markerOptions));
+                        markers.set(markerIndex2, map.addMarker(markerOptions));
                     }
-                    if (mmo.animInterval > 0) {  // Анимация
+
+                    if (markers==((MapActivity) (curActivity)).curPosMarkers) {
+                        float n = Float.parseFloat(((MapActivity) (curActivity)).walkSettings.getString(
+                                "map_cursor_pulsations_per_second", "0"));
+                        if (n > 0) {
+                            mmo.animInterval = Math.round(1000 / n / mmo.bitmaps.length); // Длительность одного кадра в миллисекундах
+Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
+                        } else {
+                            mmo.animInterval = 0;
+                        }
+                    } // Остальные - как задано в mmo
+
+                    if (mmo.animInterval>0) {  // Анимация (пульсация)
                         if (handler==null) {
                             handler = new Handler(); // Main thread
                         }
-                        final int iconIndex[] = {0};
+                        final int[] iconIndex = {0};
 
-                        final Marker marker0 = markers.get(markerIndex);
+                        final int markerIndex3=markerIndex2;
+                        final Marker marker0 = markers.get(markerIndex3);
                         handler.postDelayed(new Runnable() {
                             @Override
                             public void run() {
                                 try {
-                                    Marker marker = markers.get(markerIndex);
-                                    if (marker==null || marker!=marker0) {
+                                    Marker marker = markers.get(markerIndex3);
+                                    if (marker==null || marker!=marker0) { // Убит?
                                         return;
                                     }
                                     if (marker.isVisible()) {
@@ -242,23 +283,61 @@ public class MyMarker {
                                         marker.setIcon(
                                                 BitmapDescriptorFactory.fromBitmap(
                                                         mmo.bitmaps[iconIndex[0]]));
+
+                                        if (markers==((MapActivity) (curActivity)).curPosMarkers &&
+                                            markerKind==MapActivity.MO_CUR_POS_WITH_DIRECTION_2 && // компас
+                                            mmo.animInterval<COMPAS_INTERVAL) {
+                                            marker.setRotation(((MapActivity) curActivity).compas.getAzimuth());
+                                        }
                                         if (isInfoWindowShown) {
                                             marker.showInfoWindow();
                                         }
                                     }
                                     handler.postDelayed(this,mmo.animInterval);
-                                } catch (Throwable e) {  // removed
+                                } catch (Throwable e) {  // NPE - marker was removed - выход из цикла
                                 }
                             }
                         },mmo.animInterval);
+                    }
+                    // Поворот в направлении взгляда - если выше не поворачивали (слишком редкая пульсация)
+                    if (markers==((MapActivity) (curActivity)).curPosMarkers &&
+                            markerKind ==MapActivity.MO_CUR_POS_WITH_DIRECTION_2 && // компас
+                            (mmo.animInterval==0 || mmo.animInterval>COMPAS_INTERVAL)) {
+                        if (handler == null) {
+                            handler = new Handler(); // Main thread
+                        }
+                        final int markerIndex3 = markerIndex2;
+                        final Marker marker0 = markers.get(markerIndex3);
+                        handler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    Marker marker = markers.get(markerIndex3);
+                                    if (marker == null || marker != marker0) { // Убит?
+                                        return;
+                                    }
+                                    if (marker.isVisible()) {
+                                        boolean isInfoWindowShown = marker.isInfoWindowShown();
+                                        marker.setRotation(((MapActivity) curActivity).compas.getAzimuth());
+                                        if (isInfoWindowShown) {
+                                            marker.showInfoWindow();
+                                        }
+                                    }
+                                    handler.postDelayed(this, COMPAS_INTERVAL);
+                                } catch (Throwable e) {  // NPE - marker was removed - выход из цикла
+                                }
+                            }
+                        }, COMPAS_INTERVAL);
                     }
                 }
             }
         );
     }
+/*
     static void turnAnimationOnOff(int markerIndex, boolean on) {
         mmoA[markerIndex].animInterval=Math.abs(mmoA[markerIndex].animInterval)*(on ? 1 : -1);
     }
+*/
     static Bitmap formMarkerIcon(
             int markerKind,
             String Uri,

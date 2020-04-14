@@ -25,7 +25,6 @@
     <string name="action_resume">Resume recording</string>
     <string name="action_gallery">Show gallery</string>
     <string name="action_info">Info</string>
-    <string name="action_where_am_i">Where am I?</string>
     <string name="action_show_entire_route">Show entire route</string>
     <string name="action_show_afs">Show artefact markers </string>
     <string name="action_hide_afs">Hide artefact markers </string>
@@ -34,6 +33,12 @@
     <string name="action_map_type_satelite">Satelite</string>
     <string name="action_map_type_terrain">Terrain</string>
     <string name="action_privacy_policy">Privacy policy</string>
+    <string name="action_turn_whereami_on">Show current position</string>
+    <string name="action_turn_whereami_off">Don\'t show current position</string>
+    <string name="action_turn_live_map_on">Live map</string>
+    <string name="action_turn_Live_map_off">Dead map</string>
+
+
     <string name="url_privacy_policy">http://gf169.narod.ru/_tbkp/GFWalk-privacy_policy-en.htm</string>
     <!--string name="url_privacy_policy">goo.gl/tgSLdn</string-->
     <string name="no_sound_recording_program">There is no sound-recording software installed</string>
@@ -125,6 +130,11 @@
     <string name="title_recording_max_possible_speed">Maximum possible speed, km/h</string>
     <string name="summary_recording_max_possible_speed">Set into 400 riding a high-speed train,
         1000 - a plain, inquire of a driver - a spacecraft. Default is 250</string>
+    <string name="title_recording_min_possible_speed">Speed of standing, km/h</string>
+    <string name="summary_recording_min_possible_speed">While moving with speed less than this value
+        the program will assume that you are standing still and the arrow of the current position marker
+        will point at the direction of your look rather than direction of your moving
+        - IF THERE IS A GEOMAGNETIC SENSOR IN YOUR DEVICE. Default is 2.4 km/h</string>
 
     <string name="title_map_settings">Map settings</string>
     <string name="title_map_show_address_in_markers">Show point\'s address</string>
@@ -134,8 +144,8 @@
     <string name="title_map_show_netto_values_in_markers">Show point\'s netto values</string>
     <string name="summary_map_show_netto_values_in_markers">Netto values are total duration and
         kilometers excluding the walk recording pauses. Are shown in parentheses. Default is No</string>
-    <string name="title_map_animated_cursor">Animate current position marker</string>
-    <string name="summary_map_animated_cursor">Increases battery consumption. Default is No</string>
+    <string name="title_map_cursor_pulsations_per_second">Number of pulsations of curremt position marker per second</string>
+    <string name="summary_map_cursor_pulsations_per_second">0 - without pulsation, default is 1</string>
 
     <string name="title_gallery_settings">Gallery settings</string>
     <string name="title_gallery_ribbon_height">The lower ribbon height, percentage of display height</string>

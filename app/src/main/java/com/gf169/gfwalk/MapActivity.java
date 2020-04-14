@@ -16,23 +16,35 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.util.AttributeSet;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.Projection;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
@@ -48,8 +60,13 @@ import java.util.Vector;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MapActivity extends AppCompatActivity implements
-        OnMapReadyCallback,GoogleMap.OnMapLongClickListener,
-        GoogleMap.OnMapLoadedCallback, GoogleMap.OnMarkerClickListener {
+        OnMapReadyCallback,GoogleMap.OnMapLongClickListener
+        ,GoogleMap.OnMapLoadedCallback, GoogleMap.OnMarkerClickListener,
+        View.OnClickListener,
+        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
+        LocationListener
+//        ,GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener
+{
     static final String TAG = "gfMapActivity";
 
     public static final int MODE_PASSIVE = 0; // Показ прогулки
@@ -60,7 +77,7 @@ public class MapActivity extends AppCompatActivity implements
 
     public static final String GLOBAL_INTENT_FILTER = "com.gf.gfwalk";
 
-    boolean mapIsVisible=false;
+    boolean mapIsVisible = false;
 
     int walkId = -1;
     int mode;  // Входной
@@ -81,20 +98,23 @@ public class MapActivity extends AppCompatActivity implements
     long lastSaveTime;
 
     AtomicBoolean animationIsRunning = new AtomicBoolean(false);
-    Vector<Thread> animateCameraWaitingThreads = new Vector<>(10,10);
+    Vector<Thread> animateCameraWaitingThreads = new Vector<>(10, 10);
 
     Location curLocation;
     Location oldLocation;
     boolean curLocationIsBad;
-    Vector<Marker> curPosMarkers = new Vector<>(3); // Маркеры текущего положения
+    Vector<Marker> curPosMarkers = new Vector<>(4); // Маркеры текущего положения
     static final int MARKER_POSITION_ONLY = 0;  // Индекс в массиве curPosMarkers
-    static final int MARKER_WITH_DIRECTION = 1; // Со стрелкой - если известно направление движения
+    static final int MARKER_WITH_DIRECTION_1 = 1; // Со стрелкой скорости - если известно направление движения
+    static final int MARKER_WITH_DIRECTION_2 = 3; // Со стрелкой направления девайса
     static final int MARKER_BAD_POSITION = 2;  // Наоборот, этот маркер обозначает последнее достоверное положение :)
+
     static final int MO_CUR_POS_POSITION_ONLY = 11;  // Параметры маркера - индекс в массиве MyMarker.mmoA
-    static final int MO_CUR_POS_WITH_DIRECTION = 12;
+    static final int MO_CUR_POS_WITH_DIRECTION_1 = 12;
+    static final int MO_CUR_POS_WITH_DIRECTION_2 = 18;
     static final int MO_CUR_POS_BAD_POSITION = 13;
     Marker curPosMarker;
-    int curPosMarkerKind=-1;
+    int curPosMarkerIndex = -1;
     boolean showInfoWindow;
     Circle accuracyCircle;
     boolean showAccuracyCircle;
@@ -106,10 +126,30 @@ public class MapActivity extends AppCompatActivity implements
     static final int MO_POINT_IN_GALLERY = 14;
 
     SharedPreferences walkSettings;
+    Compas compas;
+    static final int MY_POSITION_BUTTON_ID = 102;
+    static final int COMPAS_VIEW_ID = 5;
+
+    private boolean whereAmIIsOn=false;
+    private GoogleApiClient googleApiClient = null;  // Для режима WhereAmI
+
+    private boolean liveMapIsOn=false;
+/*
+    @Override
+    public void onMyLocationClick(@NonNull Location location) {
+//            Toast.makeText(this, "Current location:\n" + location, Toast.LENGTH_LONG).show();
+    }
 
     @Override
+    public boolean onMyLocationButtonClick() {
+        whereAmI();
+        return true;  // Перехватили, стандартный курсор не покажет!
+    }    @Override
+*/
+
     protected void onNewIntent(Intent intent) { // Повторный вход из Gallery
         Utils.logD(TAG, "onNewIntent");
+        super.onNewIntent(intent);
 
         calledFrom = intent.getStringExtra("calledFrom");
         if (walk != null) {
@@ -150,7 +190,7 @@ public class MapActivity extends AppCompatActivity implements
         afInGalleryNumber = savedInstanceState.getInt("afInGalleryNumber", -1);
         showInfoWindow = savedInstanceState.getBoolean("showInfoWindow");
         showAccuracyCircle = savedInstanceState.getBoolean("showAccuracyCircle");
-        showAFs = savedInstanceState.getBoolean("showAFs",true);
+        showAFs = savedInstanceState.getBoolean("showAFs", true);
         lastAction = savedInstanceState.getInt("lastAction");
         calledFrom = savedInstanceState.getString("calledFrom");
         for (int i = 0; i < curPosMarkers.capacity(); i++) {
@@ -163,27 +203,37 @@ public class MapActivity extends AppCompatActivity implements
         lastSaveTime = savedInstanceState.getLong("lastSaveTime");
         textFilePath = savedInstanceState.getString("textFilePath");
 
-        oldLocation = savedInstanceState.getParcelable("curLocation");
-        curLocation = WalkRecorder.lastGoodLocation;
-        curLocationIsBad = WalkRecorder.curLocationIsOK <= 0;
+        whereAmIIsOn = savedInstanceState.getBoolean("whereAmIIsOn"); // Показ текущего положения в passive mode
+        if (whereAmIIsOn) {
+            curLocation=savedInstanceState.getParcelable("curLocation");
+            curLocationIsBad=false;
+        } else {
+            curLocation = WalkRecorder.lastGoodLocation;
+            curLocationIsBad = WalkRecorder.curLocationIsOK <= 0;
+        }
+
+        liveMapIsOn = savedInstanceState.getBoolean("liveMapIsOn"); // Показ текущего положения в passive mode
 
         walkSettings = SettingsActivity.getCurrentWalkSettings(this, walkId);
-        boolean b=walkSettings.getBoolean("map_animated_cursor",true);
+/*
+        boolean b=walkSettings.getBoolean("map_cursor_pulsations_per_second",true);
         MyMarker.turnAnimationOnOff(MO_CUR_POS_BAD_POSITION,b);
         MyMarker.turnAnimationOnOff(MO_CUR_POS_POSITION_ONLY,b);
-        MyMarker.turnAnimationOnOff(MO_CUR_POS_WITH_DIRECTION,b);
+        MyMarker.turnAnimationOnOff(MO_CUR_POS_WITH_DIRECTION_1,b);
+        MyMarker.turnAnimationOnOff(MO_CUR_POS_WITH_DIRECTION_2,b);
+*/
 
         setContentView(R.layout.activity_map);
         ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                 .getMapAsync(this);
 
         findViewById(R.id.map_curtain).setOnTouchListener( // Для блокирования touch events во впремя анимации
-            new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    return animationIsRunning.get(); // false - pass on the touch to the map or shadow layer.
-                }
-            });
+                new View.OnTouchListener() {
+                    @Override
+                    public boolean onTouch(View v, MotionEvent event) {
+                        return animationIsRunning.get(); // false - pass on the touch to the map or shadow layer.
+                    }
+                });
     }
 
     @Override
@@ -191,7 +241,12 @@ public class MapActivity extends AppCompatActivity implements
         Utils.logD(TAG, "onPause");
         super.onPause();
 
-        mapIsVisible=false;
+        mapIsVisible = false;
+/*
+        if (compas !=null) {
+            compas.turnOn(false);
+        }
+*/
     }
 
     @Override
@@ -216,18 +271,21 @@ public class MapActivity extends AppCompatActivity implements
             addPoint(0, null, null, "onDestroy", true); // Команда WalkRecorder'у: добавь и умри
         }
         for (int i = 0; i < curPosMarkers.size(); i++) {
-            MyMarker.killMarker(curPosMarkers,i);
+            MyMarker.killMarker(curPosMarkers, i);
         }
         for (int i = 0; i < otherMarkers.size(); i++) {
-            MyMarker.killMarker(otherMarkers,i);
+            MyMarker.killMarker(otherMarkers, i);
         }
         for (int i = 0; i < MyMarker.workMarkers.size(); i++) {
-            MyMarker.killMarker(MyMarker.workMarkers,i);
+            MyMarker.killMarker(MyMarker.workMarkers, i);
         }
         for (int i = 0; i < animateCameraWaitingThreads.size(); i++) {
-            if (animateCameraWaitingThreads.get(i)!=null) {
+            if (animateCameraWaitingThreads.get(i) != null) {
                 animateCameraWaitingThreads.get(i).interrupt();
             }
+        }
+        if (googleApiClient!=null && googleApiClient.isConnected()) {
+            LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
         }
     }
 
@@ -267,7 +325,16 @@ public class MapActivity extends AppCompatActivity implements
         }
         lastAction = 0;
 
-        mapIsVisible=true;
+        mapIsVisible = true;
+
+/*
+        if (mode==MODE_ACTIVE) {
+            if (compas ==null) {
+                compas =new Compas(this, );
+            }
+            compas.turnOn(true);
+        }
+*/
     }
 
     @Override
@@ -277,8 +344,31 @@ public class MapActivity extends AppCompatActivity implements
                 broadcastReceiver, new IntentFilter("DoInUIThread"));
         registerReceiver(broadcastReceiver2, new IntentFilter(GLOBAL_INTENT_FILTER));
 
+//        UiSettings uiSettings = map.getUiSettings ();
+//        uiSettings.setMyLocationButtonEnabled(true);
+
+
         this.map = map;
         map.setMapType(mapType);
+
+        // Рисуем my location button
+        View v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
+                findViewById(COMPAS_VIEW_ID);
+        RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) v.getLayoutParams();
+        ViewGroup p = (ViewGroup) v.getParent();
+        ImageView v2 = new ImageView(this);
+        RelativeLayout.LayoutParams lp2 = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
+        lp2.setMargins(p.getWidth() - v.getRight(), lp.topMargin, lp.leftMargin, p.getHeight() - v.getBottom());
+        v2.setImageDrawable(curLocation == null ?
+                getResources().getDrawable(R.drawable.my_position_button_passive) :
+                liveMapIsOn ? getResources().getDrawable(R.drawable.my_position_button_live) :
+                        getResources().getDrawable(R.drawable.my_position_button_active));
+        v2.setId(MY_POSITION_BUTTON_ID);
+        v2.setClickable(true);
+        v2.setOnClickListener(this);
+        p.addView(v2, lp2);
+
         walk = new Walk(this);
         walk.loadAndDraw(true); // Загрузка из базы и рисование - асинхронно, в отдельной thread
         setTitle(getResources().getString(R.string.walk_header) + walkId);
@@ -289,7 +379,15 @@ public class MapActivity extends AppCompatActivity implements
             enterResumeMode();  // Начинаем запись прогулки
         } else if (mode == MODE_ACTIVE) {
             returnIfHasGone();
+        } else if (mode == MODE_PASSIVE) {
+            if (whereAmIIsOn) {
+                switchWhereAmI(true);
+            }
         }
+//        map.setMyLocationEnabled(true);
+//        map.setOnMyLocationButtonClickListener(this);
+//        map.setOnMyLocationClickListener(this);
+
     }
 
     @Override
@@ -312,6 +410,8 @@ public class MapActivity extends AppCompatActivity implements
         savedInstanceState.putInt("mapType", mapType);
         savedInstanceState.putString("textFilePath", textFilePath);
         savedInstanceState.putParcelable("curLocation", curLocation);
+        savedInstanceState.putBoolean("whereAmIIsOn", whereAmIIsOn);
+        savedInstanceState.putBoolean("liveMapIsOn", liveMapIsOn);
     }
 
     @Override
@@ -356,7 +456,12 @@ public class MapActivity extends AppCompatActivity implements
                         mode, false);
                 return true;
             case R.id.action_where_am_i:
-                whereAmI();
+                switchWhereAmI(!whereAmIIsOn);
+                updateOptionsMenu();
+                return true;
+            case R.id.action_live_map:
+                switchLiveMap(!liveMapIsOn);
+                updateOptionsMenu();
                 return true;
             case R.id.action_show_entire_route:
                 showEntireRoute();
@@ -479,7 +584,13 @@ public class MapActivity extends AppCompatActivity implements
         invalidateOptionsMenu(); // перерисует action bar
         setZoomAndFocus(2);
         MainActivity.pleaseDo = MainActivity.pleaseDo + " refresh selected item";
-//mode=1/0;
+
+        ImageView v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
+                findViewById(MY_POSITION_BUTTON_ID);
+        v.setImageDrawable(liveMapIsOn ?
+                getResources().getDrawable(R.drawable.my_position_button_live) :
+                getResources().getDrawable(R.drawable.my_position_button_active));
+        v.invalidate();
     }
 
     private void enterPassiveMode() {
@@ -496,10 +607,16 @@ public class MapActivity extends AppCompatActivity implements
             }
         }
         curPosMarker = null;
-        curPosMarkerKind=-1;
+        curPosMarkerIndex = -1;
         showAccuracyCircle = false;
         drawAccuracyCircle();
         curLocation = null;
+        whereAmIIsOn=false;
+
+        ImageView v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
+                findViewById(MY_POSITION_BUTTON_ID);
+        v.setImageDrawable(getResources().getDrawable(R.drawable.my_position_button_passive));
+        v.invalidate();
     }
 
     private void updateOptionsMenu() {
@@ -513,7 +630,14 @@ public class MapActivity extends AppCompatActivity implements
                     modeInitial != MODE_PASSIVE);  // ПРИостановленная новая прогулка
             optionsMenu.findItem(R.id.action_gallery).setVisible(mode != MODE_RESUME &&
                     pointsAreLoaded);
-            optionsMenu.findItem(R.id.action_where_am_i).setVisible(mode != MODE_RESUME);
+            optionsMenu.findItem(R.id.action_where_am_i).setVisible(mode == MODE_PASSIVE)
+                    .setTitle(whereAmIIsOn ?
+                            getResources().getString(R.string.action_turn_whereami_off) :
+                            getResources().getString(R.string.action_turn_whereami_on));
+            optionsMenu.findItem(R.id.action_live_map).setVisible(mode == MODE_ACTIVE || whereAmIIsOn)
+                    .setTitle(liveMapIsOn ?
+                            getResources().getString(R.string.action_turn_Live_map_off) :
+                            getResources().getString(R.string.action_turn_live_map_on));
             optionsMenu.findItem(R.id.action_show_entire_route).setVisible(mode != MODE_RESUME);
             optionsMenu.findItem(R.id.action_show_accuracy_circle).setVisible(mode == MODE_ACTIVE)
                     .setTitle(showAccuracyCircle ?
@@ -707,7 +831,7 @@ public class MapActivity extends AppCompatActivity implements
                     updateFromGalleryIntent = null;
                 }
 //                drawPointInGalleryMarker(afInGalleryNumber);  // Точки уже загружены. Но артефакты еще нет!
-                                                              // Перенесено в Walk
+                // Перенесено в Walk
                 pointsAreLoaded = true;
                 updateOptionsMenu();
             } else if (action.equals("toast")) {
@@ -736,9 +860,9 @@ public class MapActivity extends AppCompatActivity implements
         Utils.logD(TAG, "setZoomAndFocus " + callNumber + " " + zoomAndFocusAreSet);
 
         if (zoomAndFocusAreSet) {   // Не первый create
-            if (callNumber==1) {
+            if (callNumber == 1) {
                 returnIfHasGone();
-            } else if (callNumber==2) {
+            } else if (callNumber == 2) {
                 if (walk.points.size() > 0) { // Последнюю точку в фокус
                     animateCamera(CameraUpdateFactory.
                             newLatLng(Utils.loc2LatLng(walk.points.get(walk.points.size() - 1).location)));
@@ -752,7 +876,7 @@ public class MapActivity extends AppCompatActivity implements
             return;
         } else if (walk.points.size() == 1) {// || mode != MODE_PASSIVE) { // Самое начало прогулки
             animateCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition(
-                    Utils.loc2LatLng(walk.points.get(walk.points.size()-1).location), zoom0, 0, 0)));
+                    Utils.loc2LatLng(walk.points.get(walk.points.size() - 1).location), zoom0, 0, 0)));
             Utils.logD(TAG, "setZoomAndFocus 3");
         } else {
             showEntireRoute();
@@ -824,16 +948,16 @@ public class MapActivity extends AppCompatActivity implements
         drawPointInGalleryMarker(afInGalleryNumber);
     }
 
-    void whereAmI() {
-        Utils.logD(TAG, "whereAmI");
+    void meToTheCenter() {
+        Utils.logD(TAG, "meToTheCenter");
 
         LatLng latLng = null;
         if (curLocation != null) {
             latLng = new LatLng(curLocation.getLatitude(), curLocation.getLongitude());
         }
-        if (latLng == null && walk.points.size() > 0) {
-            latLng = Utils.loc2LatLng(walk.points.get(walk.points.size() - 1).location);
-        }
+//        if (latLng == null && walk.points.size() > 0) {
+//            latLng = Utils.loc2LatLng(walk.points.get(walk.points.size() - 1).location);
+//        }
         if (latLng != null) {
             animateCamera(CameraUpdateFactory.newLatLng(latLng));
         }
@@ -845,7 +969,7 @@ public class MapActivity extends AppCompatActivity implements
             builder.include(Utils.loc2LatLng(walk.points.get(i).location));
         }
         if (mode == MODE_ACTIVE) {
-            if (curPosMarker!=null) {
+            if (curPosMarker != null) {
                 builder.include(curPosMarker.getPosition());
             }
         }
@@ -860,32 +984,39 @@ public class MapActivity extends AppCompatActivity implements
     }
 
     void drawCurPosMarker(boolean isBad) {
+        Utils.logD(TAG, "drawCurPosMarker");
+
         if (!mapIsVisible) return;
 
-        if (mode == MODE_PASSIVE  // Может быть
+        if (mode == MODE_PASSIVE && !whereAmIIsOn // Может быть
                 || curLocation == null) { // На всякий...
             return;
         }
         boolean isInfoWindowShown = curPosMarker != null && curPosMarker.isInfoWindowShown();
 
-        int curPosMarkerKindNew=isBad ? MARKER_BAD_POSITION :
-                curLocation.hasBearing() ? MARKER_WITH_DIRECTION : MARKER_POSITION_ONLY;
+        int curPosMarkerIndexNew = isBad ? MARKER_BAD_POSITION : getKindOfCurPosMarker();
         String title = Utils.fullInfStr(curLocation, walk.initialAltitude);
-        if (curPosMarkerKindNew!=curPosMarkerKind) {
-            curPosMarkerKind=curPosMarkerKindNew;
-            int markerIndex=curPosMarkerKind==MARKER_BAD_POSITION ? MO_CUR_POS_BAD_POSITION :
-                    curPosMarkerKind == MARKER_POSITION_ONLY ? MO_CUR_POS_POSITION_ONLY :
-                            MO_CUR_POS_WITH_DIRECTION;
-            MyMarker.drawMarker(map,curPosMarkers,0,markerIndex,
+        if (curPosMarkerIndexNew != curPosMarkerIndex) {
+            curPosMarkerIndex = curPosMarkerIndexNew;
+            int markerKind =
+                    curPosMarkerIndex == MARKER_BAD_POSITION ? MO_CUR_POS_BAD_POSITION :
+                            curPosMarkerIndex == MARKER_POSITION_ONLY ? MO_CUR_POS_POSITION_ONLY :
+                                    curPosMarkerIndex == MARKER_WITH_DIRECTION_1 ? MO_CUR_POS_WITH_DIRECTION_1 :
+                                            MO_CUR_POS_WITH_DIRECTION_2;
+            MyMarker.drawMarker(map, curPosMarkers, 0, markerKind,  // 0! Потому что одновременно может быть только 1
                     curLocation, title, null,
                     null, null, null,
-                    curPosMarkerKind==MARKER_WITH_DIRECTION ? curLocation.getBearing(): -1, true, true);
-            curPosMarker=curPosMarkers.get(0);
+                    curPosMarkerIndex == MARKER_WITH_DIRECTION_1 ? curLocation.getBearing() :
+                            curPosMarkerIndex == MARKER_WITH_DIRECTION_2 ? compas.getAzimuth() : -1,
+                    true, true);
+            curPosMarker = curPosMarkers.get(0);
         } else {
             curPosMarker.setTitle(title);
             curPosMarker.setPosition(Utils.loc2LatLng(curLocation));
-            if (curPosMarkerKind==MARKER_WITH_DIRECTION) {
+            if (curPosMarkerIndex == MARKER_WITH_DIRECTION_1) {
                 curPosMarker.setRotation(curLocation.getBearing());
+            } else if (curPosMarkerIndex == MARKER_WITH_DIRECTION_2) {
+                curPosMarker.setRotation(compas.getAzimuth());
             }
         }
         if (showInfoWindow || isInfoWindowShown) {
@@ -893,7 +1024,12 @@ public class MapActivity extends AppCompatActivity implements
             curPosMarker.showInfoWindow();  // Refresh'им
         }
         drawAccuracyCircle();
+
+        if (liveMapIsOn) {
+            rotateMap(true);
+        }
     }
+
     void drawAccuracyCircle() {
         if (accuracyCircle != null) {
             accuracyCircle.remove();
@@ -930,23 +1066,34 @@ public class MapActivity extends AppCompatActivity implements
         return false;
     }
 
-    void returnIfHasGone() {
+    @Override
+    public void onClick(View v) {
+        if (v.getId() == MY_POSITION_BUTTON_ID) {
+            if (curLocation != null) {
+                meToTheCenter();
+            } else {
+                showEntireRoute();
+            }
+        }
+    }
+
+    void returnIfHasGone() {  // Если я ушел за экран, возвращаем
         Utils.logD(TAG, "returnIfHasGone");
 
-        StringBuilder s=new StringBuilder("");
-        if (map == null || walk == null || mode==MODE_PASSIVE
-                || !walk.mapIsLoaded && Utils.set(s,"!walk.mapIsLoaded")
-                || curLocation == null && walk.points.size()==0 &&
-                    Utils.set(s,"curLocation == null && walk.points.size()==0")
+        StringBuilder s = new StringBuilder("");
+        if (map == null || walk == null || mode == MODE_PASSIVE
+                || !walk.mapIsLoaded && Utils.set(s, "!walk.mapIsLoaded")
+                || curLocation == null && walk.points.size() == 0 &&
+                Utils.set(s, "curLocation == null && walk.points.size()==0")
                 || System.currentTimeMillis() - lastSaveTime < 5000 && // Не переворот
-                    Utils.set(s,"System.currentTimeMillis() - lastSaveTime < 5000")
-                ) {
-            Utils.logD(TAG, "returnIfHasGone 1: "+s);
+                Utils.set(s, "System.currentTimeMillis() - lastSaveTime < 5000")
+        ) {
+            Utils.logD(TAG, "returnIfHasGone 1: " + s);
             return;
         }
-        Utils.logD(TAG, "returnIfHasGone 2: "+map.getCameraPosition().zoom);
-        Location location=curLocation!=null ?
-                curLocation : walk.points.get(walk.points.size()-1).location;
+        Utils.logD(TAG, "returnIfHasGone 2: " + map.getCameraPosition().zoom);
+        Location location = curLocation != null ?
+                curLocation : walk.points.get(walk.points.size() - 1).location;
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
         Point point = map.getProjection().toScreenLocation(latLng);
         if (!Utils.isBetween(point.x, 0, findViewById(R.id.map).getWidth()) ||
@@ -959,37 +1106,174 @@ public class MapActivity extends AppCompatActivity implements
     void animateCamera(final CameraUpdate cameraUpdate) {  // Не две одновременно
         Utils.logD(TAG, "animateCamera");
 
-        final Thread[] thread={null};
+        final Thread[] thread = {null};
         thread[0] = Utils.runX(
-            new Runnable() {
-                public void run() {
-                    Utils.logD(TAG, "animateCamera: real start " + thread[0].getId());
-                    map.animateCamera(cameraUpdate,
-                        new GoogleMap.CancelableCallback() {
-                            @Override
-                            public void onFinish() {
-                                Utils.logD(TAG, "animateCamera: stop1 " + thread[0].getId());
-                                thread[0].interrupt();
-                                animationIsRunning.set(false);
-                                animateCameraWaitingThreads.set(
-                                        animateCameraWaitingThreads.indexOf(thread[0]),null);
-                                zoomAndFocusAreSet = true;
-                            }
+                new Runnable() {
+                    public void run() {
+                        Utils.logD(TAG, "animateCamera: real start " + thread[0].getId());
+                        map.animateCamera(cameraUpdate,
+                                new GoogleMap.CancelableCallback() {
+                                    @Override
+                                    public void onFinish() {
+                                        Utils.logD(TAG, "animateCamera: stop1 " + thread[0].getId());
+                                        thread[0].interrupt();
+                                        animationIsRunning.set(false);
+                                        animateCameraWaitingThreads.set(
+                                                animateCameraWaitingThreads.indexOf(thread[0]), null);
+                                        zoomAndFocusAreSet = true;
+                                    }
 
-                            @Override
-                            public void onCancel() {
-                                Utils.logD(TAG, "animateCamera: stop2 " + thread[0].getId());
-                                thread[0].interrupt();
-                                animationIsRunning.set(false);
-                                animateCameraWaitingThreads.set(
-                                        animateCameraWaitingThreads.indexOf(thread[0]),null);
-                            }
-                        }
-                    );
-                    animationIsRunning.set(true);
-                }
-            },animationIsRunning, -1);
+                                    @Override
+                                    public void onCancel() {
+                                        Utils.logD(TAG, "animateCamera: stop2 " + thread[0].getId());
+                                        thread[0].interrupt();
+                                        animationIsRunning.set(false);
+                                        animateCameraWaitingThreads.set(
+                                                animateCameraWaitingThreads.indexOf(thread[0]), null);
+                                    }
+                                }
+                        );
+                        animationIsRunning.set(true);
+                    }
+                }, animationIsRunning, -1);
         animateCameraWaitingThreads.add(thread[0]);
         Utils.logD(TAG, "animateCamera: start " + thread[0].getId());
+    }
+
+    int getKindOfCurPosMarker() {
+        // float speed = walkSettings.getFloat("recording_min_possible_speed",0.0f);  ClassCastException!!!
+        float minSpeed = Float.parseFloat(walkSettings.getString("recording_min_possible_speed", "0"));
+        if (minSpeed != 0 && (!curLocation.hasSpeed() || curLocation.getSpeed() < minSpeed) && turnCompasOn(true)) {
+            return MARKER_WITH_DIRECTION_2;
+        } else if (curLocation.hasBearing()) {
+            turnCompasOn(false);
+            return MARKER_WITH_DIRECTION_1;
+        }
+        turnCompasOn(false);
+        return MARKER_POSITION_ONLY;
+    }
+
+    boolean turnCompasOn(boolean on) {
+        if (on) {
+            if (compas == null) {
+                compas = new Compas(this);
+            }
+            return compas.turnOn(true);
+        } else {
+            if (compas != null) {
+                return compas.turnOn(false);
+            }
+            return true;
+        }
+    }
+
+    void switchWhereAmI(boolean on) {
+        Utils.logD(TAG, "switchWhereAmI "+on);
+
+        whereAmIIsOn=on;
+
+        curLocation = null;
+        if (on) {
+            if (googleApiClient==null) {
+                googleApiClient = new GoogleApiClient.Builder(this)
+                        .addApi(LocationServices.API)
+                        .addConnectionCallbacks(this)
+                        .addOnConnectionFailedListener(this)
+ //                       .enableAutoManage(this, this)
+                        .build();
+            }
+            if (googleApiClient.isConnected()) {
+                onConnected(null);
+            } else {
+                googleApiClient.connect();
+            }
+        } else {
+            LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
+//            googleApiClient = null;
+            MyMarker.killMarker(curPosMarkers, 0);
+            curPosMarkerIndex = -1;
+        }
+        ImageView v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
+                findViewById(MY_POSITION_BUTTON_ID);
+        v.setImageDrawable(!on ?
+                getResources().getDrawable(R.drawable.my_position_button_passive) :
+                liveMapIsOn ? getResources().getDrawable(R.drawable.my_position_button_live) :
+                getResources().getDrawable(R.drawable.my_position_button_active));
+    }
+
+    @Override
+    public void onConnected(Bundle connectionHint) { // Google Api client
+        Utils.logD(TAG, "onConnectedQQ");
+
+        if (googleApiClient == null) { // 2 раза было !
+            return;
+        }
+
+        int interval = 1;
+        LocationRequest locationRequest = LocationRequest.create();
+        locationRequest.setInterval(interval * 1000);
+        locationRequest.setFastestInterval(interval * 1000);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        LocationServices.FusedLocationApi.requestLocationUpdates(
+                googleApiClient, locationRequest, this);
+    }
+
+    public void onConnectionFailed(ConnectionResult result) {  // Никогда не видел
+        Utils.logD(TAG, "onConnectionFailed, result: " + result.toString());
+
+        LocalBroadcastManager.getInstance(this).sendBroadcast(
+                new Intent("DoInUIThread")
+                        .putExtra("action", "showNotConnectedDialog")  // Выдаст диалог "Установите новую версию"
+                        .putExtra("resultCode", result.getErrorCode())
+                        .putExtra("result", result.toString()));
+    }
+
+    @Override
+    public void onConnectionSuspended(int cause) {  // Сам восстановит
+        Utils.logD(TAG, "onConnectionSuspended, cause=" + cause);
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        Utils.logD(TAG, "onLocationChanged "+location);
+
+        boolean isFirst= curLocation==null; // Первое после включения
+        if (isFirst) {
+            curLocation = new Location("");
+        }
+        curLocation.set(location);
+        drawCurPosMarker(false);
+        if (isFirst) {
+            meToTheCenter();
+        }
+    }
+    void switchLiveMap(boolean on) {
+        Utils.logD(TAG, "switchLiveMap " + on);
+
+        liveMapIsOn=on;
+        rotateMap(on);
+        ImageView v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
+                findViewById(MY_POSITION_BUTTON_ID);
+        v.setImageDrawable(liveMapIsOn ?
+                getResources().getDrawable(R.drawable.my_position_button_live) :
+                getResources().getDrawable(R.drawable.my_position_button_active));
+        v.invalidate();
+    }
+    void rotateMap(boolean on) {
+        if (curPosMarkerIndex == MARKER_WITH_DIRECTION_1 || curPosMarkerIndex == MARKER_WITH_DIRECTION_2) {
+            CameraPosition pos = map.getCameraPosition();
+            if (on) { // стрелка маркера смотрит вверх
+                pos = CameraPosition.builder(pos)
+                        .target(Utils.loc2LatLng(curLocation))
+                        .bearing(curPosMarkerIndex == MARKER_WITH_DIRECTION_1 ? curLocation.getBearing() :
+                                curPosMarkerIndex == MARKER_WITH_DIRECTION_2 ? compas.getAzimuth() : 0)
+                        .build();
+            } else {  // Возвращаем, верх - север
+                pos = CameraPosition.builder(pos)
+                        .bearing(0)
+                        .build();
+            }
+            map.animateCamera(CameraUpdateFactory.newCameraPosition(pos));
+        }
     }
 }

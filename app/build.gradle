@@ -4,9 +4,9 @@ android {
     signingConfigs {
         config {
             keyAlias 'gfWalk'
-            keyPassword '*******'
+            keyPassword 'FukagawA'
             storeFile file('C:\\Users\\gf2\\AndroidStudioProjects\\Keys\\release.keystore')
-            storePassword 'Fu******'
+            storePassword 'FukagawA'
         }
         config1 {
             keyAlias 'androiddebugkey'
@@ -17,27 +17,30 @@ android {
     }
     defaultConfig {
         applicationId "com.gf169.gfwalk"
-        minSdkVersion 15
-        targetSdkVersion 26
-        versionCode 24
-        versionName "1.0"
+        minSdkVersion 21
+        targetSdkVersion 29
+        versionCode 25
+        versionName "2.0"
     }
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.config
+            debuggable = true
         }
         debug {
             minifyEnabled false
             signingConfig signingConfigs.config
+            debuggable true
+            applicationIdSuffix = 'debug'
         }
     }
     dexOptions {
         maxProcessCount 4 // this is the default value
         javaMaxHeapSize "4g"
     }
-    compileSdkVersion 26
+    compileSdkVersion 29
 
     lintOptions {
         disable 'DuplicatePlatformClasses'
@@ -45,15 +48,21 @@ android {
     packagingOptions {
         exclude 'META-INF/DEPENDENCIES'
     }
+    lintOptions {
+        // checkReleaseBuilds false
+        // Or, if you prefer, you can continue to check for errors in release builds,
+        // but continue the build even when errors are found:
+        abortOnError false
+    }
 }
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'com.android.support:appcompat-v7:26.1.0'
-    implementation 'com.android.support:support-v4:26.1.0'
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
 //    implementation 'com.google.android.gms:play-services:12.0.1'
-    implementation 'com.google.android.gms:play-services-maps:12.0.1'
-    implementation 'com.google.android.gms:play-services-location:12.0.1'
+    implementation 'com.google.android.gms:play-services-maps:17.0.0'
+    implementation 'com.google.android.gms:play-services-location:17.0.0'
 //    implementation 'com.google.android.gms:play-services-identity:12.0.1'
 //    implementation 'com.google.android.gms:play-services-gcm:12.0.1'
 }

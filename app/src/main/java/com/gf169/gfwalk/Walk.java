@@ -11,7 +11,7 @@ import android.database.Cursor;
 import android.graphics.Color;
 import android.location.Geocoder;
 import android.location.Location;
-import android.support.v4.content.LocalBroadcastManager;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.Marker;

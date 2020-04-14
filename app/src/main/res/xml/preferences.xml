@@ -51,6 +51,14 @@
             android:maxLength="4"
             android:defaultValue="250"
             />
+        <EditTextPreference
+            android:key="recording_min_possible_speed"
+            android:title="@string/title_recording_min_possible_speed"
+            android:summary="@string/summary_recording_min_possible_speed"
+            android:inputType="numberDecimal"
+            android:maxLength="4"
+            android:defaultValue="2.4"
+            />
     </PreferenceCategory>
     <PreferenceCategory
         android:key="map_settings"
@@ -74,11 +82,13 @@
             android:summary="@string/summary_map_show_netto_values_in_markers"
             android:defaultValue="false"
         		/>
-        <CheckBoxPreference
-            android:key="map_animated_cursor"
-            android:title="@string/title_map_animated_cursor"
-            android:summary="@string/summary_map_animated_cursor"
-            android:defaultValue="false"
+        <EditTextPreference
+            android:key="map_cursor_pulsations_per_second"
+            android:title="@string/title_map_cursor_pulsations_per_second"
+            android:summary="@string/summary_map_cursor_pulsations_per_second"
+            android:inputType="numberDecimal"
+            android:maxLength="3"
+            android:defaultValue="1"
         		/>
     </PreferenceCategory>
     <PreferenceCategory
