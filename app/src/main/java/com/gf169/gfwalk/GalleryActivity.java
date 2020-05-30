@@ -82,6 +82,7 @@ public class GalleryActivity extends AppCompatActivity {
     @Override
     protected void onNewIntent(Intent intent) { // Повторный вход - из MapActivity
         Utils.logD(TAG, "onNewIntent");
+        super.onNewIntent(intent);
 
         calledFrom=intent.getStringExtra("calledFrom");
         afNumber=intent.getExtras().getInt("afInGalleryNumber", 0);
@@ -111,7 +112,6 @@ public class GalleryActivity extends AppCompatActivity {
 //                "", false);
 
         MyMarker.curActivity=this;
-        Utils.curActivity=this;
         Utils.raiseRestartActivityFlag(this.getLocalClassName(), false);
 
         Bundle extras=savedInstanceState;
@@ -370,6 +370,8 @@ public class GalleryActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(
             int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
         switch (requestCode) {
             case WRITE_TEXT_REQUEST_CODE:
                 drawAF(bigPicture, afNumber, 0, 0, false);
@@ -394,7 +396,7 @@ public class GalleryActivity extends AppCompatActivity {
         Utils.logD(TAG, "onBackPressed");
 
         finish();
-        if (!calledFrom.equals("MainActivity")) {
+        if (!calledFrom.endsWith("MainActivity")) {
             Intent intent=new Intent(this, MapActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     .putExtra("afInGalleryNumber", afNumber)
@@ -546,7 +548,9 @@ public class GalleryActivity extends AppCompatActivity {
             startActivityForResult(intent, MapActivity.WRITE_TEXT_REQUEST_CODE);
         } else {
             intent.setAction(android.content.Intent.ACTION_VIEW);
-            intent.setData(Uri.parse(af.uri));
+            Uri uri = Uri.parse(af.uri);
+            intent.setDataAndType(uri, getContentResolver().getType(uri));
+            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             startActivity(intent);
         }
     }
@@ -560,11 +564,13 @@ public class GalleryActivity extends AppCompatActivity {
         cursor.close();
         comment=Utils.nvl(comment, "");
         commentField.setText(comment);
+/*
         ImageSpan span = new ImageSpan(this,R.drawable.hint_write2,
                 ImageSpan.ALIGN_BOTTOM);
         SpannableStringBuilder ssb = new SpannableStringBuilder("              ");
         ssb.setSpan(span,0,1,Spannable.SPAN_INCLUSIVE_INCLUSIVE );
         commentField.setHint(ssb);
+*/
     }
     void saveComment() {
         if (comment!=null && !comment.equals(commentField.getText().toString())) {

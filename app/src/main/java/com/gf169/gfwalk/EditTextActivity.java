@@ -15,8 +15,6 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.loopj.android.airbrake.AirbrakeNotifier;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;

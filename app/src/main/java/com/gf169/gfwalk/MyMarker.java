@@ -31,17 +31,18 @@ import java.io.IOException;
 import java.util.Random;
 import java.util.Vector;
 
-public class MyMarker {
-    static final String TAG = "gfMyMarker";
+class MyMarker {
+    private static final String TAG = "gfMyMarker";
 
-    static final int MINI_THUMBNAIL_HEIGHT=512; // x 384
-    static final int MICRO_THUMBNAIL_HEIGHT=96; // x 96
+    private static final int MINI_THUMBNAIL_HEIGHT=512; // x 384
+    private static final int MICRO_THUMBNAIL_HEIGHT=96; // x 96
 
-    static final float MARKER_ROTATION=0.001F;
-    static final long COMPAS_INTERVAL=100;  // Частота опроса компас и поворота маркера текущего положения
+    private static final float MARKER_ROTATION=0.001F;
+    private static final long COMPAS_INTERVAL=100;  // Частота опроса компас и поворота маркера текущего положения
 
     static Activity curActivity;
-    static Handler handler;
+    static MapActivity mapActivity;
+    private static Handler handler;
 
     static class MyMarkerOptions {
         int[] iconResources;
@@ -93,7 +94,7 @@ public class MyMarker {
             new MyMarkerOptions(new int[]{R.drawable.ic_point_start},0.012F,2,5,0.5F,0.5F,0,0.5F,0,0,0,0),
             null,null,
 //            new MyMarkerOptions(new int[]{R.drawable.ic_cur_pos1},0.025F,3,5,0.5F,0.5F,0,0.5F,0,0,0), // Текущее положение без направления
-            new MyMarkerOptions(new int[]{
+            new MyMarkerOptions(new int[]{  // 11 - без направления
                     R.drawable.ic_cur_pos11,
                     R.drawable.ic_cur_pos12,
                     R.drawable.ic_cur_pos13,
@@ -116,9 +117,9 @@ public class MyMarker {
                     R.drawable.ic_cur_pos12,
                     R.drawable.ic_cur_pos11,
                     },
-                    0.030F,4,6,0.5F,0.5F,0,0.5F,300,0,0,6), // Текущее положение без направления
+                    0.030F,4,6,0.5F,0.5F,0,0.5F,0,0,0,6), // Текущее положение без направления
 //            new MyMarkerOptions(new int[]{R.drawable.ic_cur_pos2},
-            new MyMarkerOptions(new int[]{
+            new MyMarkerOptions(new int[]{  // 12 - направление по скорости
                     R.drawable.ic_cur_pos51,
                     R.drawable.ic_cur_pos52,
                     R.drawable.ic_cur_pos53,
@@ -141,9 +142,10 @@ public class MyMarker {
                     R.drawable.ic_cur_pos52,
                     R.drawable.ic_cur_pos51,
                     },
-                    0.030F,4,6,0.5F,0.5F,0,0.5F,300,0,0,6), // Текущее положение c направлением
+                   0.030F,4,6,0.5F,0.5F,0,0.5F,0,0,0,6), // Текущее положение c направлением
 //            new MyMarkerOptions(new int[]{R.drawable.ic_cur_pos3},
-            new MyMarkerOptions(new int[]{
+/*
+            new MyMarkerOptions(new int[]{  // 13 - bad position
                     R.drawable.ic_cur_pos31,
                     R.drawable.ic_cur_pos32,
                     R.drawable.ic_cur_pos33,
@@ -166,12 +168,14 @@ public class MyMarker {
                     R.drawable.ic_cur_pos32,
                     R.drawable.ic_cur_pos31,
                     },
-                    0.030F,4,6,0.5F,0.5F,0,0.5F,300,0,0,6), // Текущее положение c направлением
+                    0.030F,4,6,0.5F,0.5F,0,0.5F,0,0,0,6),
+*/
+            null,
             new MyMarkerOptions(new int[]{R.drawable.ic_point_in_gallery},0.04F,4,6,0.5F,0.5F,0,0.75F,0,0,0,0),
             new MyMarkerOptions(new int[]{R.drawable.ic_point_end_passive},0.012F,2,5,0.5F,0.5F,0,0.5F,0,0,0,0),
             new MyMarkerOptions(new int[]{R.drawable.ic_point_default_passive},0.03F,3,6,0.5F,0.5F,0,1F,0,0,0,0), // Timer
             new MyMarkerOptions(new int[]{R.drawable.ic_point_default_with_afs},0.03F,3,6,0.5F,0.5F,0,1F,0,0,0,0), // Timer
-            new MyMarkerOptions(new int[]{
+            new MyMarkerOptions(new int[]{ // 13 - направление по компасу
                     R.drawable.ic_cur_pos71,
                     R.drawable.ic_cur_pos72,
                     R.drawable.ic_cur_pos73,
@@ -212,6 +216,7 @@ public class MyMarker {
         String afUri, String afFilePath,
         String textOnIcon,
         float rotation,
+        float pulsationsPerSecond,
         boolean visible,
         final boolean removeOld) {
 
@@ -239,26 +244,31 @@ public class MyMarker {
             new Runnable() {
                 @Override
                 public void run() {
-                    int markerIndex2=markerIndex;
-                    if (markerIndex2<0) {
-                        markers.add(map.addMarker(markerOptions));
-                        markerIndex2=markers.size()-1;
+                    Marker marker = map.addMarker(markerOptions);
+                    int markerIndex2 = markerIndex;
+                    if (markerIndex2 < 0) {
+                        markers.add(marker);
+                        markerIndex2 = markers.size() - 1;
+                        mapActivity.allMarkers.add(marker);
                     } else {
                         if (removeOld && markers.get(markerIndex2) != null) {
-                            killMarker(markers,markerIndex2);
+                            killMarker(markers, markerIndex2);
+                            int i=mapActivity.allMarkers.indexOf(markers.get(markerIndex2));
+                            if (i>=0) {
+                                mapActivity.allMarkers.set(i,null);
+                            }
                         }
-                        markers.set(markerIndex2, map.addMarker(markerOptions));
+                        markers.set(markerIndex2, marker);
+                        mapActivity.allMarkers.add(marker);
                     }
 
-                    if (markers==((MapActivity) (curActivity)).curPosMarkers) {
-                        float n = Float.parseFloat(((MapActivity) (curActivity)).walkSettings.getString(
-                                "map_cursor_pulsations_per_second", "0"));
-                        if (n > 0) {
-                            mmo.animInterval = Math.round(1000 / n / mmo.bitmaps.length); // Длительность одного кадра в миллисекундах
-Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
-                        } else {
-                            mmo.animInterval = 0;
-                        }
+                    if (marker.getSnippet() != null &&
+                            marker.getPosition().hashCode() == mapActivity.markerWithInfoWindow) {
+                        marker.showInfoWindow();
+                    }
+
+                    if (pulsationsPerSecond>0) {
+                            mmo.animInterval = Math.round(1000 / pulsationsPerSecond / mmo.bitmaps.length); // Длительность одного кадра в миллисекундах
                     } // Остальные - как задано в mmo
 
                     if (mmo.animInterval>0) {  // Анимация (пульсация)
@@ -284,10 +294,10 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
                                                 BitmapDescriptorFactory.fromBitmap(
                                                         mmo.bitmaps[iconIndex[0]]));
 
-                                        if (markers==((MapActivity) (curActivity)).curPosMarkers &&
+                                        if (markers==mapActivity.curPosMarkers &&
                                             markerKind==MapActivity.MO_CUR_POS_WITH_DIRECTION_2 && // компас
                                             mmo.animInterval<COMPAS_INTERVAL) {
-                                            marker.setRotation(((MapActivity) curActivity).compas.getAzimuth());
+                                            marker.setRotation(mapActivity.compas.getAzimuth());
                                         }
                                         if (isInfoWindowShown) {
                                             marker.showInfoWindow();
@@ -300,7 +310,7 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
                         },mmo.animInterval);
                     }
                     // Поворот в направлении взгляда - если выше не поворачивали (слишком редкая пульсация)
-                    if (markers==((MapActivity) (curActivity)).curPosMarkers &&
+                    if (markers==mapActivity.curPosMarkers &&
                             markerKind ==MapActivity.MO_CUR_POS_WITH_DIRECTION_2 && // компас
                             (mmo.animInterval==0 || mmo.animInterval>COMPAS_INTERVAL)) {
                         if (handler == null) {
@@ -318,7 +328,7 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
                                     }
                                     if (marker.isVisible()) {
                                         boolean isInfoWindowShown = marker.isInfoWindowShown();
-                                        marker.setRotation(((MapActivity) curActivity).compas.getAzimuth());
+                                        marker.setRotation(mapActivity.compas.getAzimuth());
                                         if (isInfoWindowShown) {
                                             marker.showInfoWindow();
                                         }
@@ -333,12 +343,8 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
             }
         );
     }
-/*
-    static void turnAnimationOnOff(int markerIndex, boolean on) {
-        mmoA[markerIndex].animInterval=Math.abs(mmoA[markerIndex].animInterval)*(on ? 1 : -1);
-    }
-*/
-    static Bitmap formMarkerIcon(
+
+    private static Bitmap formMarkerIcon(
             int markerKind,
             String Uri,
             String filePath,
@@ -355,7 +361,7 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
                 dstHeight=Math.max(dstHeight,mmo.minHeight*metrics.densityDpi/25.4F);
                 dstHeight=Math.min(dstHeight,mmo.maxHeight*metrics.densityDpi/25.4F);
                 mmo.realHeight=(int) dstHeight;  // Это требуемая высота иконки в пикселах
-                mmo.bitmaps[k]=decodeBitmap(curActivity.getResources(),mmo.iconResources[k],
+                mmo.bitmaps[k]=decodeBitmap(MainActivity.appContext.getResources(),mmo.iconResources[k],
                         0,null,null,mmo.realHeight,false);
             }
         }
@@ -364,7 +370,7 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
                 (Uri != null | filePath!=null))  {
             bitmap = decodeBitmap(null,0,markerKind,Uri,filePath,mmo.realHeight,false);
             if (mmo.overlayRes!=0) {
-                bitmap=addOverlayOnBitmap(bitmap, curActivity.getResources(), mmo.overlayRes);
+                bitmap=addOverlayOnBitmap(bitmap, MainActivity.appContext.getResources(), mmo.overlayRes);
             }
         }
         if (bitmap==null) {
@@ -373,11 +379,12 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
         }
         if (textOnIcon!=null) {       // Накладываем на нее текст
             bitmap=addTextOnIcon(bitmap, textOnIcon, mmo.textCorner,
-                   textOnIcon.equals(curActivity.getResources().getString(R.string.af_has_gone)) ?
+                   textOnIcon.equals(MainActivity.appContext.getResources().getString(R.string.af_has_gone)) ?
                            Color.RED : -1);
         }
         return bitmap;
     }
+
     static Bitmap decodeBitmap(
             Resources resources, int resId, int afKind, String afUri, String afFilePath, int height,
             boolean dontResize) {
@@ -385,11 +392,12 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
             return decodeBitmap2(resources, resId, afKind, afUri, afFilePath, height,dontResize);
         } catch (OutOfMemoryError e) {  // Дефолтная иконка
             e.printStackTrace();
-            return decodeBitmap2(curActivity.getResources(),mmoA[afKind].iconResources[0],
+            return decodeBitmap2(MainActivity.appContext.getResources(),mmoA[afKind].iconResources[0],
                     0,null,null,height,dontResize);
         }
     }
-    static Bitmap decodeBitmap2(
+
+    private static Bitmap decodeBitmap2(
             Resources resources, int resId, int afKind, String afUri, String afFilePath, int height,
             boolean dontResize) {
         Bitmap bitmap=null;
@@ -400,7 +408,6 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
                 bitmap=ThumbnailUtils.extractThumbnail(
                         BitmapFactory.decodeResource(resources, resId), height, height);
             } catch (Exception e) {  // Исходный bitmap меньше требуемого (в gallery) - оставляем как есть
-//                e.printStackTrace();
             }
             return bitmap;
         }
@@ -411,13 +418,13 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
                     MediaStore.Images.Thumbnails.MICRO_KIND : MediaStore.Images.Thumbnails.MINI_KIND;
             if (afKind==Walk.AFKIND_PHOTO) {
                 bitmap=MediaStore.Images.Thumbnails.getThumbnail(
-                        curActivity.getContentResolver(),
+                        MainActivity.appContext.getContentResolver(),
                         Long.parseLong(Uri.parse(afUri).getLastPathSegment()),
                         kind, null);
                 bitmap=rotateBitmap(bitmap, afFilePath);
             } else if (afKind==Walk.AFKIND_VIDEO) {
                 bitmap=MediaStore.Video.Thumbnails.getThumbnail(
-                        curActivity.getContentResolver(),
+                        MainActivity.appContext.getContentResolver(),
                         Long.parseLong(Uri.parse(afUri).getLastPathSegment()),
                         kind, null);
             }
@@ -456,6 +463,7 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
         }
         return bitmap;
     }
+
     static void changeMarkerKind( // Меняем только иконку - не анимированный маркер!
             final Vector<Marker> markers,
             final int markerIndex,
@@ -470,13 +478,14 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
             }
         );
     }
+
     static Bitmap addTextOnIcon(Bitmap bitmap, String text, int textCorner, int color) {
         if (!bitmap.isMutable()) {
             bitmap=bitmap.copy(Bitmap.Config.ARGB_8888, true);
         }
 
         Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
-        float height=curActivity.getResources().getInteger(R.integer.text_on_bmp_height)/100.0F;
+        float height=MainActivity.appContext.getResources().getInteger(R.integer.text_on_bmp_height)/100.0F;
         paint.setTextSize((int) (bitmap.getHeight()*height));
         paint.setFakeBoldText(true);
 //        paint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
@@ -484,7 +493,7 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
         paint.getTextBounds(text, 0, text.length(), bounds);
         int x=(bitmap.getWidth()-bounds.width())/2; // textCorner==0
         int y=(bitmap.getHeight()+bounds.height())/2;
-        float padding=curActivity.getResources().getInteger(R.integer.text_on_bmp_padding)/100.0F;
+        float padding=MainActivity.appContext.getResources().getInteger(R.integer.text_on_bmp_padding)/100.0F;
         int padX=(int) (padding*bitmap.getWidth());
         int padY=(int) (padding*bitmap.getHeight());
         if (textCorner==0) {  // Координаты левого нижнего угла прямоугольника в котором текст
@@ -515,6 +524,7 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
         new Canvas(bitmap).drawText(text,x,y,paint);
         return bitmap;
     }
+
     static Bitmap addOverlayOnBitmap(Bitmap bitmap, Resources resources, int resId) {
         // Получаем overlay - Bitmap такой же высоты, как и bitmap
         bfo.inJustDecodeBounds=true; // Узнаем размер исходной картинки
@@ -533,7 +543,8 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
         canvas.drawBitmap(overlay, (bitmap.getWidth() - overlay.getWidth()) / 2, 0, paint);
         return bitmap;
     }
-    static int getContrastColor (Bitmap bitmap) {
+
+    private static int getContrastColor (Bitmap bitmap) {
         int c, nPixels=0;
         long alphaBucket=0, redBucket=0, greenBucket=0, blueBucket=0;
         for (int y=0; y<bitmap.getHeight(); y++) {
@@ -556,7 +567,8 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
         }
         return color;
     }
-    public static Bitmap rotateBitmap(Bitmap bitmap, String bitmapPath) {
+
+    private static Bitmap rotateBitmap(Bitmap bitmap, String bitmapPath) {
         // http://stackoverflow.com/questions/20478765/how-to-get-the-correct-orientation-of-the-image-selected-from-the-default-image
         ExifInterface exif;
         try {
@@ -607,6 +619,7 @@ Log.e("qqqq",""+mmo.animInterval + " " +n +" "+ mmo.bitmaps.length);
             return bitmap;
         }
     }
+
     static void killMarker(final Vector<Marker> markers, final int markerIndex) {
         curActivity.runOnUiThread(new Runnable() {
             public void run() {

@@ -51,9 +51,8 @@
     
     <string name="no_address">Address is not determined</string>
 
-    <string name="walk_recording_ended">Walk recording finished</string>
+    <string name="walk_recording_ended">Walk recording is stopped</string>
     <string name="waiting_for_GPS">Waiting for location data... If GPS and Wi-Fi is disabled, enable</string>
-    <!--string name="waiting_for_GPS">Waiting for location data... If Location service is disabled, enable</string-->
     <string name="location_not_defined">Failed to determine location!</string>
     
     <string name="title_activity_gallery">Artifacts</string>
@@ -73,7 +72,7 @@
     <string name="warning_icon_delete">You are about to delete the walk\'s cover! Don\'t forget to
         choose another one</string>
 
-    <string name="walk_start_time">Start time</string>
+    <string name="walk_start">Start</string>
     <string name="walk_start_place">Start place</string>
     <string name="walk_duration">Duration</string>
     <string name="walk_length">Path length</string>
@@ -124,14 +123,11 @@
         meters</string>
     <string name="summary_recording_min_location_accuracy">The point is not created if its
         localization uncertainty is greater than this value. Default is 50</string>
-    <string name="title_recording_location_request_interval">Localization interval, seconds</string>
-    <string name="summary_recording_location_request_interval">The less the value the more accurate
-        your position on the map is and the faster the battery is drained. Default is 10</string>
     <string name="title_recording_max_possible_speed">Maximum possible speed, km/h</string>
     <string name="summary_recording_max_possible_speed">Set into 400 riding a high-speed train,
         1000 - a plain, inquire of a driver - a spacecraft. Default is 250</string>
-    <string name="title_recording_min_possible_speed">Speed of standing, km/h</string>
-    <string name="summary_recording_min_possible_speed">While moving with speed less than this value
+    <string name="title_map_min_possible_speed">Speed of standing, km/h</string>
+    <string name="summary_map_min_possible_speed">While moving with speed less than this value
         the program will assume that you are standing still and the arrow of the current position marker
         will point at the direction of your look rather than direction of your moving
         - IF THERE IS A GEOMAGNETIC SENSOR IN YOUR DEVICE. Default is 2.4 km/h</string>
@@ -146,6 +142,9 @@
         kilometers excluding the walk recording pauses. Are shown in parentheses. Default is No</string>
     <string name="title_map_cursor_pulsations_per_second">Number of pulsations of curremt position marker per second</string>
     <string name="summary_map_cursor_pulsations_per_second">0 - without pulsation, default is 1</string>
+    <string name="title_map_current_location_request_interval">Localization interval, seconds</string>
+    <string name="summary_map_current_location_request_interval">The less the value the more accurate
+        your position on the map is shown and the faster the battery is drained. Default is 3</string>
 
     <string name="title_gallery_settings">Gallery settings</string>
     <string name="title_gallery_ribbon_height">The lower ribbon height, percentage of display height</string>
@@ -156,4 +155,5 @@
 
     <string name="press_plus">Press + in the action bar to start walk recording</string>
     <string name="goodbye">Goodbye :( Can\'t work without permissions</string>
+    <string name="press_back_once_more">To stop walk recording press Back twice</string>
 </resources>

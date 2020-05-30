@@ -1,37 +1,46 @@
 package com.gf169.gfwalk;
 
 import android.app.Activity;
+import android.app.Application;
 import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.graphics.Typeface;
 import android.location.Location;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
-import androidx.annotation.NonNull;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.util.AttributeSet;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -53,6 +62,7 @@ import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -60,24 +70,26 @@ import java.util.Vector;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MapActivity extends AppCompatActivity implements
-        OnMapReadyCallback,GoogleMap.OnMapLongClickListener
-        ,GoogleMap.OnMapLoadedCallback, GoogleMap.OnMarkerClickListener,
-        View.OnClickListener,
-        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
-        LocationListener
-//        ,GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener
-{
-    static final String TAG = "gfMapActivity";
+        OnMapReadyCallback,GoogleMap.OnMapLongClickListener,
+        GoogleMap.OnMapLoadedCallback, GoogleMap.OnMarkerClickListener,
+        GoogleMap.OnInfoWindowClickListener,
+        View.OnClickListener {
+//        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
+//        GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener,
 
-    public static final int MODE_PASSIVE = 0; // Показ прогулки
-    public static final int MODE_RESUME = 1; // Переход к записи
-    public static final int MODE_ACTIVE = 2; // Запись - после нарисования первой новой точки
+    private static final String TAG = "gfMapActivity";
+
+    static final int MODE_PASSIVE = 0; // Показ прогулки
+    static final int MODE_RESUME = 1; // Переход к записи
+    static final int MODE_ACTIVE = 2; // Запись - после нарисования первой новой точки
 
     static final int WRITE_TEXT_REQUEST_CODE = 2;
+    static final int RECORD_SPEECH_REQUEST_CODE = 3;
 
-    public static final String GLOBAL_INTENT_FILTER = "com.gf.gfwalk";
+    static final String GLOBAL_INTENT_FILTER = "com.gf.gfwalk";
 
-    boolean mapIsVisible = false;
+    static final String DIR_TEXT = "Text";
+    static final String DIR_AUDIO = "gfWalk";  // Появится в разделе Files
 
     int walkId = -1;
     int mode;  // Входной
@@ -95,14 +107,13 @@ public class MapActivity extends AppCompatActivity implements
     Intent updateFromGalleryIntent;
     boolean pointsAreLoaded; // walk загрузил и нарисовал все точки из базы
     String calledFrom;
-    long lastSaveTime;
 
     AtomicBoolean animationIsRunning = new AtomicBoolean(false);
     Vector<Thread> animateCameraWaitingThreads = new Vector<>(10, 10);
 
     Location curLocation;
-    Location oldLocation;
-    boolean curLocationIsBad;
+    Location curLocation2;
+
     Vector<Marker> curPosMarkers = new Vector<>(4); // Маркеры текущего положения
     static final int MARKER_POSITION_ONLY = 0;  // Индекс в массиве curPosMarkers
     static final int MARKER_WITH_DIRECTION_1 = 1; // Со стрелкой скорости - если известно направление движения
@@ -115,37 +126,45 @@ public class MapActivity extends AppCompatActivity implements
     static final int MO_CUR_POS_BAD_POSITION = 13;
     Marker curPosMarker;
     int curPosMarkerIndex = -1;
-    boolean showInfoWindow;
-    Circle accuracyCircle;
-    boolean showAccuracyCircle;
-    boolean showAFs;
-    int mapType = GoogleMap.MAP_TYPE_NORMAL;
 
     Vector<Marker> otherMarkers = new Vector<>(1);
     static final int MARKER_POINT_IN_GALLERY = 0;  // Точка, на которой фокус в галерее
     static final int MO_POINT_IN_GALLERY = 14;
 
-    SharedPreferences walkSettings;
+    Vector<Marker> allMarkers=new Vector<>();
+
+    boolean mapIsVisible = false;
+    boolean showInfoWindow;  // маркера текущего положения
+    int markerWithInfoWindow;  // маркера точки маршрута - getPosition.hashCode()
+    Circle accuracyCircle;
+    boolean showAccuracyCircle;
+    boolean showAFs;
+    int mapType = GoogleMap.MAP_TYPE_NORMAL;
+    private boolean whereAmIIsOn=false;
+    private boolean liveMapIsOn=false;
+    boolean returnIfHasGone = false;
+
     Compas compas;
-    static final int MY_POSITION_BUTTON_ID = 102;
+    ImageView myPositionButton;
+    ImageView entireRouteButton;
     static final int COMPAS_VIEW_ID = 5;
 
-    private boolean whereAmIIsOn=false;
-    private GoogleApiClient googleApiClient = null;  // Для режима WhereAmI
+    long lastBackPressedTime=0;
 
-    private boolean liveMapIsOn=false;
-/*
-    @Override
-    public void onMyLocationClick(@NonNull Location location) {
-//            Toast.makeText(this, "Current location:\n" + location, Toast.LENGTH_LONG).show();
-    }
+    SharedPreferences walkSettings;
 
-    @Override
-    public boolean onMyLocationButtonClick() {
-        whereAmI();
-        return true;  // Перехватили, стандартный курсор не покажет!
-    }    @Override
-*/
+    float minPossibleSpeed=-1;
+    int currentLocationRequestInterval=-1;
+    float cursorPulsationsPerSecond=-1;
+
+    Thread mockerThread;
+    Handler handler;
+
+    static LocationListener locationListener;
+    static GoogleApiClient googleApiClient;
+    static MapActivity curActivity;
+
+    long timeStartSoundRecorder;
 
     protected void onNewIntent(Intent intent) { // Повторный вход из Gallery
         Utils.logD(TAG, "onNewIntent");
@@ -161,15 +180,34 @@ public class MapActivity extends AppCompatActivity implements
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Utils.logD(TAG, "onCreate");
+        Utils.logD(TAG, "onCreate " + this);
         super.onCreate(savedInstanceState);
+/* Mitigation of Google bug 24.4.2020
+        SharedPreferences googleBug = getSharedPreferences("google_bug", Context.MODE_PRIVATE);
+        if (!googleBug.contains("fixed")) {
+            File corruptedZoomTables = new File(getFilesDir(), "ZoomTables.data");
+            corruptedZoomTables.delete();
+            googleBug.edit().putBoolean("fixed", true).apply();
+        }
+*/
+        Utils.setDefaultUncaughtExceptionHandler(() -> {  // Чтобы при отвале все культурно убивало
+            Log.e(TAG, "Uncaught Exception");
+            if (WalkRecorder.self != null) {
+                WalkRecorder.self.stop(6);
+            }
+            if (locationListener != null) {  // Надо?
+                switchWhereAmI(false, false);
+                finish();
+            }
+            Utils.setDefaultUncaughtExceptionHandler(null);
+        });
 
-//        AirbrakeNotifier.register(this,
-//                "f17762b5ea71e1af3bcf37ba0cb2a67c",
-//                "", false);
+        if (curActivity == null) {  // При старте из notification создается левый экземпляр
+            MyMarker.curActivity = this;
+            MyMarker.mapActivity = this;
+            curActivity = this;
+        }
 
-        MyMarker.curActivity = this;
-        Utils.curActivity = this;
         Utils.raiseRestartActivityFlag(this.getLocalClassName(), false);
 
         if (savedInstanceState == null) {  // Первый запуск
@@ -178,12 +216,11 @@ public class MapActivity extends AppCompatActivity implements
                 finish();
                 return;
             }
-            mode = savedInstanceState.getInt("mode");
+            mode = savedInstanceState.getInt("mode");  // Новая/продолжение - MODE_RESUME, старая - MODE_PASSIVE
         } else {
-            mode = WalkRecorder.isWorking ?
-                    savedInstanceState.getInt("mode") :
-                    MODE_PASSIVE; // Прекратили запись из notification'a
+            mode = savedInstanceState.getInt("mode");
         }
+
         modeInitial = savedInstanceState.getInt("modeInitial", mode);
         walkId = savedInstanceState.getInt("walkId", -1);
         zoomAndFocusAreSet = savedInstanceState.getBoolean("zoomAndFocusAreSet");
@@ -193,71 +230,58 @@ public class MapActivity extends AppCompatActivity implements
         showAFs = savedInstanceState.getBoolean("showAFs", true);
         lastAction = savedInstanceState.getInt("lastAction");
         calledFrom = savedInstanceState.getString("calledFrom");
-        for (int i = 0; i < curPosMarkers.capacity(); i++) {
-            curPosMarkers.add(null);
-        }
-        for (int i = 0; i < otherMarkers.capacity(); i++) {
-            otherMarkers.add(null);
-        }
+        for (int i = 0; i < curPosMarkers.capacity(); i++) curPosMarkers.add(null);
+        for (int i = 0; i < otherMarkers.capacity(); i++) otherMarkers.add(null);
+        markerWithInfoWindow = savedInstanceState.getInt("markerWithInfoWindow");
         mapType = savedInstanceState.getInt("mapType", GoogleMap.MAP_TYPE_NORMAL);
-        lastSaveTime = savedInstanceState.getLong("lastSaveTime");
         textFilePath = savedInstanceState.getString("textFilePath");
-
-        whereAmIIsOn = savedInstanceState.getBoolean("whereAmIIsOn"); // Показ текущего положения в passive mode
-        if (whereAmIIsOn) {
-            curLocation=savedInstanceState.getParcelable("curLocation");
-            curLocationIsBad=false;
-        } else {
-            curLocation = WalkRecorder.lastGoodLocation;
-            curLocationIsBad = WalkRecorder.curLocationIsOK <= 0;
-        }
-
-        liveMapIsOn = savedInstanceState.getBoolean("liveMapIsOn"); // Показ текущего положения в passive mode
-
+        if (Utils.isEmulator())
+            curLocation2 =savedInstanceState.getParcelable("curLocation2");
+        liveMapIsOn = savedInstanceState.getBoolean("liveMapIsOn");
+        returnIfHasGone = savedInstanceState.getBoolean("returnIfHasGone");
         walkSettings = SettingsActivity.getCurrentWalkSettings(this, walkId);
-/*
-        boolean b=walkSettings.getBoolean("map_cursor_pulsations_per_second",true);
-        MyMarker.turnAnimationOnOff(MO_CUR_POS_BAD_POSITION,b);
-        MyMarker.turnAnimationOnOff(MO_CUR_POS_POSITION_ONLY,b);
-        MyMarker.turnAnimationOnOff(MO_CUR_POS_WITH_DIRECTION_1,b);
-        MyMarker.turnAnimationOnOff(MO_CUR_POS_WITH_DIRECTION_2,b);
-*/
+
+        whereAmIIsOn = /* mode != MODE_PASSIVE || */
+                savedInstanceState.getBoolean("whereAmIIsOn"); // Показывать текущее положение
 
         setContentView(R.layout.activity_map);
         ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                 .getMapAsync(this);
-
-        findViewById(R.id.map_curtain).setOnTouchListener( // Для блокирования touch events во впремя анимации
-                new View.OnTouchListener() {
-                    @Override
-                    public boolean onTouch(View v, MotionEvent event) {
-                        return animationIsRunning.get(); // false - pass on the touch to the map or shadow layer.
-                    }
-                });
+        findViewById(R.id.map_curtain).setOnTouchListener( // Для блокирования touch events во время анимации
+                (view, event) -> {return animationIsRunning.get();}); // false - pass on the touch to the map or shadow layer.
     }
 
     @Override
     protected void onPause() {
-        Utils.logD(TAG, "onPause");
+        Utils.logD(TAG, "onPause " + this);
         super.onPause();
 
-        mapIsVisible = false;
 /*
-        if (compas !=null) {
-            compas.turnOn(false);
-        }
+        // Запоминаем, может, собрались в настройку
+        showAddressInMarkers = walkSettings.getBoolean("map_show_address_in_markers", false);
+        showDetailsInMarkers = walkSettings.getBoolean("map_show_details_in_markers", false);
+        showNettoVauesInMarkers = walkSettings.getBoolean("map_show_netto_values_in_markers", false);
 */
+
+        mapIsVisible = false;
+
+        if (!isChangingConfigurations()) { // Не переворот, НЕ будет сразу же рестартован
+            switchWhereAmI(false, true);  // Отключаем получение onLocationChange, а флог сохраняем
+            returnIfHasGone = whereAmIIsOn;
+        } else {
+            returnIfHasGone = false;  // При перевороте не возвращаем
+        }
     }
 
     @Override
     protected void onStop() {
-        Utils.logD(TAG, "onStop");
+        Utils.logD(TAG, "onStop " + this);
         super.onStop();
     }
 
     @Override
     protected void onDestroy() {
-        Utils.logD(TAG, "onDestroy");
+        Utils.logD(TAG, "onDestroy " + this);
         super.onDestroy();
 
         try {
@@ -265,41 +289,33 @@ public class MapActivity extends AppCompatActivity implements
             unregisterReceiver(broadcastReceiver2);
         } catch (Exception e) {
         }
-        if (mode != MODE_PASSIVE && isFinishing()) {  // Нажата Back или Up или в программе Finish()
-            Toast.makeText(MapActivity.this, getResources().getString(R.string.walk_recording_ended),
-                    Toast.LENGTH_SHORT).show();
-            addPoint(0, null, null, "onDestroy", true); // Команда WalkRecorder'у: добавь и умри
-        }
-        for (int i = 0; i < curPosMarkers.size(); i++) {
-            MyMarker.killMarker(curPosMarkers, i);
-        }
-        for (int i = 0; i < otherMarkers.size(); i++) {
-            MyMarker.killMarker(otherMarkers, i);
-        }
-        for (int i = 0; i < MyMarker.workMarkers.size(); i++) {
-            MyMarker.killMarker(MyMarker.workMarkers, i);
-        }
         for (int i = 0; i < animateCameraWaitingThreads.size(); i++) {
             if (animateCameraWaitingThreads.get(i) != null) {
                 animateCameraWaitingThreads.get(i).interrupt();
             }
         }
-        if (googleApiClient!=null && googleApiClient.isConnected()) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
+        if (mockerThread!=null) {
+            mockerThread.interrupt();
+        }
+        if (this == curActivity) {  // При старте из notification создается левый экземпляр
+            MyMarker.curActivity = null;
+            MyMarker.mapActivity = null;
+            curActivity = null;
+            if (isFinishing() && WalkRecorder.self != null) {
+                WalkRecorder.self.stop(7);
+            }
         }
     }
 
     @Override
     protected void onStart() {
-        Utils.logD(TAG, "onStart");
+        Utils.logD(TAG, "onStart " + this);
         super.onStart();
-
-        returnIfHasGone();
     }
 
     @Override
     protected void onRestart() {
-        Utils.logD(TAG, "onRestart");
+        Utils.logD(TAG, "onRestart " + this);
         super.onRestart();
 /* Откуда-то берется лишний onPause
         if (Utils.restartActivityIfFlagIsRaised(MapActivity.this)) {
@@ -313,7 +329,7 @@ public class MapActivity extends AppCompatActivity implements
 
     @Override
     protected void onResume() {
-        Utils.logD(TAG, "onResume " + lastAction);
+        Utils.logD(TAG, "onResume " + this + lastAction);
         super.onResume();
 
         if (lastAction == R.id.action_photo) {
@@ -325,16 +341,30 @@ public class MapActivity extends AppCompatActivity implements
         }
         lastAction = 0;
 
-        mapIsVisible = true;
+        // Возможно, ходили в настройку, поменяли
+        minPossibleSpeed = Float.parseFloat(walkSettings.getString("map_min_possible_speed", "2.4"));
+        int i = currentLocationRequestInterval;
+        currentLocationRequestInterval=
+                Integer.parseInt(walkSettings.getString("map_current_location_request_interval", "3"));
+        if (i!=currentLocationRequestInterval && googleApiClient!=null) {
+            requestLocationUpdates();
+        }
+        cursorPulsationsPerSecond = Float.parseFloat(walkSettings.getString("map_cursor_pulsations_per_second", "1"));
 
 /*
-        if (mode==MODE_ACTIVE) {
-            if (compas ==null) {
-                compas =new Compas(this, );
-            }
-            compas.turnOn(true);
+        if (showAddressInMarkers != null && (
+                showAddressInMarkers != walkSettings.getBoolean("map_show_address_in_markers", false) ||
+                showDetailsInMarkers != walkSettings.getBoolean("map_show_details_in_markers", false) ||
+                showNettoVauesInMarkers != walkSettings.getBoolean("map_show_netto_values_in_markers", false))) {
+            recreate();  // Чтобы сразу подействовали изменения
         }
 */
+
+        mapIsVisible = true;
+
+        if (whereAmIIsOn) {
+            switchWhereAmI(true, false);  // Запускаем слежение
+        }
     }
 
     @Override
@@ -347,27 +377,24 @@ public class MapActivity extends AppCompatActivity implements
 //        UiSettings uiSettings = map.getUiSettings ();
 //        uiSettings.setMyLocationButtonEnabled(true);
 
-
         this.map = map;
         map.setMapType(mapType);
+        map.setBuildingsEnabled(true); // Не работает?
+        map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {  // multyline snippet
+            @Override
+            public View getInfoContents(Marker arg0) {
+                return null;
+            }
+            @Override
+            public View getInfoWindow(Marker marker) {
+                LayoutInflater inflater = LayoutInflater.from(getApplicationContext());
+                View view = inflater.inflate(R.layout.map_infowindow, null, false);
+                ((TextView) view.findViewById(R.id.marker_title)).setText(marker.getTitle());
+                ((TextView) view.findViewById(R.id.marker_snippet)).setText(marker.getSnippet());
 
-        // Рисуем my location button
-        View v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
-                findViewById(COMPAS_VIEW_ID);
-        RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) v.getLayoutParams();
-        ViewGroup p = (ViewGroup) v.getParent();
-        ImageView v2 = new ImageView(this);
-        RelativeLayout.LayoutParams lp2 = new RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
-        lp2.setMargins(p.getWidth() - v.getRight(), lp.topMargin, lp.leftMargin, p.getHeight() - v.getBottom());
-        v2.setImageDrawable(curLocation == null ?
-                getResources().getDrawable(R.drawable.my_position_button_passive) :
-                liveMapIsOn ? getResources().getDrawable(R.drawable.my_position_button_live) :
-                        getResources().getDrawable(R.drawable.my_position_button_active));
-        v2.setId(MY_POSITION_BUTTON_ID);
-        v2.setClickable(true);
-        v2.setOnClickListener(this);
-        p.addView(v2, lp2);
+                return view;
+            }
+        });
 
         walk = new Walk(this);
         walk.loadAndDraw(true); // Загрузка из базы и рисование - асинхронно, в отдельной thread
@@ -375,24 +402,29 @@ public class MapActivity extends AppCompatActivity implements
         map.setOnMapLongClickListener(this);
         map.setOnMapLoadedCallback(this);  // Здесь установим масштаб и фокус
         map.setOnMarkerClickListener(this);
+        map.setOnInfoWindowClickListener(this);
+    }
+
+    @Override
+    public void onMapLoaded() { // Не раньше, чем будет показана !!!
+        Utils.logD(TAG, "onMapLoaded");
+/* Callback interface for when the map has finished rendering. This occurs after all tiles required
+to render the map have been fetched, and all labeling is complete. This event will not fire if the
+map never loads due to connectivity issues, or if the map is continuously changing and never completes
+loading due to the user constantly interacting with the map.
+*/
+        addButtons();
+
         if (mode == MODE_RESUME) {
             enterResumeMode();  // Начинаем запись прогулки
-        } else if (mode == MODE_ACTIVE) {
-            returnIfHasGone();
-        } else if (mode == MODE_PASSIVE) {
-            if (whereAmIIsOn) {
-                switchWhereAmI(true);
-            }
         }
-//        map.setMyLocationEnabled(true);
-//        map.setOnMyLocationButtonClickListener(this);
-//        map.setOnMyLocationClickListener(this);
 
+        walk.mapIsLoaded = true; // Просто понимаем флаг - loadAndDraw увидит и вернет сюда просьбу установить zoom
     }
 
     @Override
     protected void onSaveInstanceState(Bundle savedInstanceState) {
-        // Вызывается между onPause и onStop
+        // Вызывается после onStop
         Utils.logD(TAG, "onSaveInstanceState");
         super.onSaveInstanceState(savedInstanceState);
         savedInstanceState.putInt("walkId", walkId);
@@ -404,14 +436,21 @@ public class MapActivity extends AppCompatActivity implements
         savedInstanceState.putInt("lastAction", lastAction);
         savedInstanceState.putBoolean("showInfoWindow", curPosMarker != null &&
                 curPosMarker.isInfoWindowShown());
+        for (Marker marker: allMarkers) {
+            if (marker!=null && marker.isInfoWindowShown()) {
+                savedInstanceState.putInt("markerWithInfoWindow",
+                        marker.getSnippet() == null ? 0 : marker.getPosition().hashCode());
+            }
+        }
         savedInstanceState.putBoolean("showAccuracyCircle", showAccuracyCircle);
         savedInstanceState.putBoolean("showAFs", showAFs);
-        savedInstanceState.putLong("lastSaveTime", lastSaveTime = System.currentTimeMillis());
         savedInstanceState.putInt("mapType", mapType);
         savedInstanceState.putString("textFilePath", textFilePath);
-        savedInstanceState.putParcelable("curLocation", curLocation);
+        if (Utils.isEmulator())
+            savedInstanceState.putParcelable("curLocation2", curLocation2);
         savedInstanceState.putBoolean("whereAmIIsOn", whereAmIIsOn);
         savedInstanceState.putBoolean("liveMapIsOn", liveMapIsOn);
+        savedInstanceState.putBoolean("returnIfHasGone", returnIfHasGone);
     }
 
     @Override
@@ -425,6 +464,7 @@ public class MapActivity extends AppCompatActivity implements
         inflater.inflate(R.menu.map_activity_actions, menu);
         optionsMenu = menu;
         updateOptionsMenu();
+
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -445,9 +485,11 @@ public class MapActivity extends AppCompatActivity implements
             case R.id.action_video:
                 actionVideo();
                 break;
+/* 2 раза back
             case R.id.action_pause:
                 enterPassiveMode();
                 return true;
+*/
             case R.id.action_resume:
                 enterResumeMode();
                 return true;
@@ -456,34 +498,42 @@ public class MapActivity extends AppCompatActivity implements
                         mode, false);
                 return true;
             case R.id.action_where_am_i:
-                switchWhereAmI(!whereAmIIsOn);
-                updateOptionsMenu();
+                switchWhereAmI(!whereAmIIsOn, false);  // Там обратит
+                item.setChecked(whereAmIIsOn);
                 return true;
             case R.id.action_live_map:
-                switchLiveMap(!liveMapIsOn);
-                updateOptionsMenu();
-                return true;
-            case R.id.action_show_entire_route:
-                showEntireRoute();
+                liveMapIsOn=!liveMapIsOn;
+                switchLiveMap(liveMapIsOn);
+                item.setChecked(!liveMapIsOn);
                 return true;
             case R.id.action_show_afs:
                 showAFs = !showAFs;
                 recreate();
+                item.setChecked(showAFs);
                 return true;
             case R.id.action_show_accuracy_circle:
                 showAccuracyCircle = !showAccuracyCircle;
                 drawAccuracyCircle();
-                updateOptionsMenu();
+//                updateOptionsMenu();
+                item.setChecked(showAccuracyCircle);
                 return true;
             case R.id.action_map_type_satelite:
                 map.setMapType(
-                        mapType = mapType == GoogleMap.MAP_TYPE_HYBRID ?
+                        mapType = mapType == GoogleMap.MAP_TYPE_HYBRID ?  // Satellite maps with a transparent layer of major streets
                                 GoogleMap.MAP_TYPE_NORMAL : GoogleMap.MAP_TYPE_HYBRID);
+                item.setChecked(mapType==GoogleMap.MAP_TYPE_HYBRID);
+                if (mapType==GoogleMap.MAP_TYPE_HYBRID) {
+                    optionsMenu.findItem(R.id.action_map_type_terrain).setChecked(false);
+                }
                 return true;
             case R.id.action_map_type_terrain:
                 map.setMapType(
-                        mapType = mapType == GoogleMap.MAP_TYPE_TERRAIN ?
+                        mapType = mapType == GoogleMap.MAP_TYPE_TERRAIN ?  // Рельеф
                                 GoogleMap.MAP_TYPE_NORMAL : GoogleMap.MAP_TYPE_TERRAIN);
+                item.setChecked(mapType==GoogleMap.MAP_TYPE_TERRAIN);
+                if (mapType==GoogleMap.MAP_TYPE_TERRAIN) {
+                    optionsMenu.findItem(R.id.action_map_type_satelite).setChecked(false);
+                }
                 return true;
             case R.id.action_info:
                 MainActivity.walkInfo(this, walkId, mode);
@@ -508,18 +558,13 @@ public class MapActivity extends AppCompatActivity implements
     }
 
     @Override
-    public void onMapLoaded() { // Не раньше, чем будет показана !!!
-        Utils.logD(TAG, "onMapLoaded");
+    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        Utils.logD(TAG, "onActivityResult " + requestCode + " " + resultCode);
+        super.onActivityResult(requestCode, resultCode, intent);
 
-        walk.mapIsLoaded = true; // Просто понимаем флаг - loadAndDraw увидит и вернет сюда просьбу установить zoom
-    }
-
-    @Override
-    protected void onActivityResult(
-            int requestCode, int resultCode, Intent intent) {
         switch (requestCode) {
             case WRITE_TEXT_REQUEST_CODE:
-                if (true) { //resultCode==Activity.RESULT_OK  { // Редактор всегда дает 0, а не Activity.RESULT_OK=-1) {
+                if (true) { //resultCode==Activity.RESULT_OK  { // Редактор всегда дает 0, а не Activity.RESULT_OK=-1
                     File file = new File(textFilePath);
                     if (file.exists() && file.length() > 0) {
                         Utils.logD(TAG, "Text file " + textFilePath + " is written");
@@ -530,12 +575,31 @@ public class MapActivity extends AppCompatActivity implements
                     }
                 }
                 break;
+
+            case RECORD_SPEECH_REQUEST_CODE:  // sound recorder
+                String dir = "";
+                if ("xiaomi".equals(Build.BRAND)) {
+                    dir = Environment.getExternalStorageDirectory().getPath() + "/MIUI/sound_recorder";
+                }
+/* Не работает
+                    sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+                            .setDataAndNormalize(Uri.fromFile(new File(dir))));
+*/
+                processNewAudioRecords(dir, timeStartSoundRecorder, System.currentTimeMillis());
+                break;
         }
     }
 
     @Override
     public boolean onSupportNavigateUp() {
         Utils.logD(TAG, "onSupportNavigateUp");
+
+        if (mode!=MODE_PASSIVE) {
+            if (requestDoubleClick()) return false;
+            handler.removeCallbacksAndMessages(null);
+            enterPassiveMode();
+            return false;
+        }
 
         finish();
         LocalBroadcastManager.getInstance(this).sendBroadcast(
@@ -544,11 +608,18 @@ public class MapActivity extends AppCompatActivity implements
     }
 
     @Override
-    public void onBackPressed() {  // После повторного входа по Back выкидывает на рабочий стол - лечение
+    public void onBackPressed() {
         Utils.logD(TAG, "onBackPressed");
 
+        if (mode!=MODE_PASSIVE) {
+            if (requestDoubleClick()) return;
+            handler.removeCallbacksAndMessages(null);
+            enterPassiveMode();
+            return;
+        }
+
         finish();
-        if (!calledFrom.equals("MainActivity")) {
+        if (!calledFrom.endsWith("MainActivity")) {   // После повторного входа по Back выкидывает на рабочий стол - лечение
             Intent intent = new Intent(this, GalleryActivity.class);
             intent.putExtra("afSize", walk.AFs.size())
                     .putExtra("calledFrom", "MainActivity"); // Чтобы вернулся в нее
@@ -564,33 +635,69 @@ public class MapActivity extends AppCompatActivity implements
         }
     }
 
-    void enterResumeMode() { // До момента нарисования первой новой точки
-        Utils.logD(TAG, "enterResumeMode " + new Date());
-        mode = MODE_RESUME;
-        updateOptionsMenu();
-        invalidateOptionsMenu(); // перерисует action bar
+    private boolean requestDoubleClick() {
+        int dt=500;  // Интервал двойного тюка
+        if (lastBackPressedTime == 0 || System.currentTimeMillis() - lastBackPressedTime > dt) {
+            (handler=new Handler(Looper.getMainLooper())).postDelayed(() -> {
+                if (!isFinishing())
+                    Toast.makeText(this, getResources().getString(R.string.press_back_once_more),
+                            Toast.LENGTH_SHORT).show();
+            },dt+10);
+            lastBackPressedTime=System.currentTimeMillis();
+            return true;
+        }
+        return false;
+    }
 
-        addPoint(0, null, null, "enterResumeMode", false); // Старт сервиса walkRecorder !!!
+    private void addButtons() {
+        Utils.logD(TAG, "addButtons");
+
+        entireRouteButton = new ImageView(this);
+        entireRouteButton.setImageDrawable(getResources().getDrawable(R.drawable.btn_entire_route));
+        entireRouteButton.setClickable(true);
+        entireRouteButton.setOnClickListener(this);
+        View v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
+                findViewById(COMPAS_VIEW_ID);  // Симметрично компасу
+        ViewGroup p = (ViewGroup) v.getParent();
+        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
+        lp.setMargins(p.getWidth() - v.getRight(), v.getTop(),
+                v.getLeft(), p.getHeight() - v.getBottom());
+        p.addView(entireRouteButton, lp); // Последующее изменение lp отражается на view!
+
+        myPositionButton=new ImageView(this);
+        myPositionButton.setImageDrawable(getResources().getDrawable(R.drawable.btn_my_position));
+        myPositionButton.setClickable(true);
+        myPositionButton.setOnClickListener(this);
+        myPositionButton.setVisibility(View.INVISIBLE);
+        RelativeLayout.LayoutParams lp2 = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
+        lp2.setMargins(p.getWidth() - 2*v.getRight(), v.getTop(),
+                2*v.getLeft() + v.getWidth(), p.getHeight() - v.getBottom());
+        p.addView(myPositionButton, lp2);
+
+        if (mode==MODE_ACTIVE) myPositionButton.setVisibility(View.VISIBLE);
+    }
+
+    void enterResumeMode() { // До момента нарисования первой новой точки
+        Utils.logD(TAG, "enterResumeMode");
+
+        mode = MODE_RESUME;
+        switchWhereAmI(true, false);
+        updateOptionsMenu();
+
+        Intent intent = new Intent(this, WalkRecorder.class)
+                .putExtra("walkId", walkId);
+        startService(intent);
     }
 
     void enterActiveMode() { // Вызывается из Walk после нарисования первой новой точки (Resume -> Active)
         Utils.logD(TAG, "enterActiveMode");
 
-        if (mode == MODE_ACTIVE) { // На всякий...
-            return;
-        }
         mode = MODE_ACTIVE;
-        updateOptionsMenu();
-        invalidateOptionsMenu(); // перерисует action bar
-        setZoomAndFocus(2);
-        MainActivity.pleaseDo = MainActivity.pleaseDo + " refresh selected item";
 
-        ImageView v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
-                findViewById(MY_POSITION_BUTTON_ID);
-        v.setImageDrawable(liveMapIsOn ?
-                getResources().getDrawable(R.drawable.my_position_button_live) :
-                getResources().getDrawable(R.drawable.my_position_button_active));
-        v.invalidate();
+        updateOptionsMenu();
+        MainActivity.pleaseDo = MainActivity.pleaseDo + " refresh selected item";
     }
 
     private void enterPassiveMode() {
@@ -598,25 +705,30 @@ public class MapActivity extends AppCompatActivity implements
 
         modeInitial = mode;
         mode = MODE_PASSIVE;
+
         addPoint(0, null, null, "enterPassiveMode", true); // Добавь точку и умри
+
         updateOptionsMenu();
-        invalidateOptionsMenu();
         for (int i = 0; i < curPosMarkers.capacity(); i++) {
             if (curPosMarkers.get(i) != null) { // Успел нарисовать
                 MyMarker.killMarker(curPosMarkers, i);
             }
         }
+
         curPosMarker = null;
         curPosMarkerIndex = -1;
+
         showAccuracyCircle = false;
         drawAccuracyCircle();
-        curLocation = null;
-        whereAmIIsOn=false;
 
-        ImageView v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
-                findViewById(MY_POSITION_BUTTON_ID);
-        v.setImageDrawable(getResources().getDrawable(R.drawable.my_position_button_passive));
-        v.invalidate();
+        switchWhereAmI(false, false); // Там curLocation = null
+
+        myPositionButton.setVisibility(View.INVISIBLE);
+
+        if (modeInitial==MODE_ACTIVE) {
+            Toast.makeText(MapActivity.this, getResources().getString(R.string.walk_recording_ended),
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void updateOptionsMenu() {
@@ -625,28 +737,25 @@ public class MapActivity extends AppCompatActivity implements
             optionsMenu.findItem(R.id.action_speech).setVisible(mode == MODE_ACTIVE);
             optionsMenu.findItem(R.id.action_text).setVisible(mode == MODE_ACTIVE);
             optionsMenu.findItem(R.id.action_video).setVisible(mode == MODE_ACTIVE);
-            optionsMenu.findItem(R.id.action_pause).setVisible(mode != MODE_PASSIVE);
+//            optionsMenu.findItem(R.id.action_pause).setVisible(mode != MODE_PASSIVE);
             optionsMenu.findItem(R.id.action_resume).setVisible(mode == MODE_PASSIVE &&
                     modeInitial != MODE_PASSIVE);  // ПРИостановленная новая прогулка
             optionsMenu.findItem(R.id.action_gallery).setVisible(mode != MODE_RESUME &&
                     pointsAreLoaded);
             optionsMenu.findItem(R.id.action_where_am_i).setVisible(mode == MODE_PASSIVE)
-                    .setTitle(whereAmIIsOn ?
-                            getResources().getString(R.string.action_turn_whereami_off) :
-                            getResources().getString(R.string.action_turn_whereami_on));
+                    .setChecked(whereAmIIsOn);
             optionsMenu.findItem(R.id.action_live_map).setVisible(mode == MODE_ACTIVE || whereAmIIsOn)
-                    .setTitle(liveMapIsOn ?
-                            getResources().getString(R.string.action_turn_Live_map_off) :
-                            getResources().getString(R.string.action_turn_live_map_on));
-            optionsMenu.findItem(R.id.action_show_entire_route).setVisible(mode != MODE_RESUME);
+                    .setChecked(liveMapIsOn);
             optionsMenu.findItem(R.id.action_show_accuracy_circle).setVisible(mode == MODE_ACTIVE)
-                    .setTitle(showAccuracyCircle ?
-                            getResources().getString(R.string.action_hide_accuracy_circle) :
-                            getResources().getString(R.string.action_show_accuracy_circle));
+                    .setChecked(showAccuracyCircle);
             optionsMenu.findItem(R.id.action_show_afs)
-                    .setTitle(showAFs ?
-                            getResources().getString(R.string.action_hide_afs) :
-                            getResources().getString(R.string.action_show_afs));
+                    .setChecked(showAFs);
+            optionsMenu.findItem(R.id.action_map_type_terrain)
+                    .setChecked(mapType==GoogleMap.MAP_TYPE_TERRAIN);
+            optionsMenu.findItem(R.id.action_map_type_satelite)
+                    .setChecked(mapType==GoogleMap.MAP_TYPE_HYBRID);
+
+            invalidateOptionsMenu();
         }
     }
 
@@ -663,9 +772,20 @@ public class MapActivity extends AppCompatActivity implements
         Utils.logD(TAG, "actionSpeech");
 
         Intent intent = new Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION);
+        PackageManager pm = this.getPackageManager();
+        final ResolveInfo mInfo = pm.resolveActivity(intent, 0);
         try {
-            startActivity(intent); // !!!
+            if ("xiaomi".equals(Build.BRAND) &&  // Не регистрирует файлы в Content provider'e - сами регистрируем
+                    "com.android.soundrecorder.SoundRecorder".equals(  // И не дает себя заменить, так что это на всякий случай
+                            intent.resolveActivity(getPackageManager()).getClassName())) {
+                timeStartSoundRecorder = System.currentTimeMillis();
+                startActivityForResult(intent, RECORD_SPEECH_REQUEST_CODE);
+            } else {
+                startActivity(intent); // !!!
+            }
+
             addPoint(0, null, null, "startActivity RECORD_SOUND_ACTION", false);
+
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, getResources().getString(R.string.no_sound_recording_program),
                     Toast.LENGTH_LONG).show();
@@ -675,24 +795,21 @@ public class MapActivity extends AppCompatActivity implements
     void actionText() {
         Utils.logD(TAG, "actionText");
 
-        String dir = Utils.createDirIfNotExists("TEXT");
+        String dir = Utils.createDirIfNotExists(getFilesDir().getAbsolutePath(), DIR_TEXT); // Internal
         if (dir == null) {
             Toast.makeText(this,
                     String.format(
                             getResources().getString(R.string.format_could_not_create_directory),
-                            "TEXT", Environment.getExternalStorageDirectory()),
+                            "Text", getFilesDir().getAbsolutePath()),
                     Toast.LENGTH_LONG).show();
             return;
         }
-        textFilePath = dir + "/gfwalk" +
-                (new SimpleDateFormat("_yyyyMMdd_HHmmss")).format(new Date()) + ".txt";
+        textFilePath = dir + "/" +
+                new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".txt";
         try {
             new File(textFilePath).createNewFile();
         } catch (java.io.IOException e) {
-            Toast.makeText(this,
-                    String.format(
-                            getResources().getString(R.string.format_could_not_create_file),
-                            textFilePath),
+            Toast.makeText(this, String.format(getResources().getString(R.string.format_could_not_create_file), textFilePath),
                     Toast.LENGTH_LONG).show();
             return;
         }
@@ -716,14 +833,19 @@ public class MapActivity extends AppCompatActivity implements
             String afFilePath,
             String debugInfo,
             boolean isLastPoint) {
-        Intent intent = new Intent(this, WalkRecorder.class);
-        intent.putExtra("walkId", walkId)
+/*
+        Intent intent = new Intent(this, WalkRecorder.class)
+                .putExtra("walkId", walkId)
+                .putExtra("location", curLocation)
                 .putExtra("debugInfo", debugInfo).putExtra("isLastPoint", isLastPoint);
         if (afKind > 0) {
             intent.putExtra("afKind", afKind)
-                    .putExtra("afUri", afUri.toString()).putExtra("afFilePath", afFilePath);
+                .putExtra("afUri", afUri.toString()).putExtra("afFilePath", afFilePath);
         }
         startService(intent);
+*/
+        WalkRecorder.self.addPoint(curLocation, debugInfo, afKind,
+                afUri == null ? null : afUri.toString(), afFilePath, isLastPoint);
     }
 
     static int showGallery(Activity activity, Walk walk,
@@ -765,8 +887,7 @@ public class MapActivity extends AppCompatActivity implements
             lastPointNumber = pointNumber;
         }
         if (pointNumber < 0) {
-            Toast.makeText(activity, activity.getResources().getString(R.string.nothing_to_show),
-                    Toast.LENGTH_SHORT).show();
+            Toast.makeText(activity, activity.getResources().getString(R.string.nothing_to_show), Toast.LENGTH_SHORT).show();
             return -1;
         }
         afInGalleryNumber = afInGalleryNumber >= 0 && !walk.AFs.get(afInGalleryNumber).deleted ||
@@ -801,88 +922,90 @@ public class MapActivity extends AppCompatActivity implements
             String action = intent.getStringExtra("action");
             Utils.logD(TAG, "Got a local message - " + action);
 
-            if (action.equals("showNotConnectedDialog")) { // GoogleApiClient не подключтлся к сервису
-                int resultCode = intent.getIntExtra("resultCode", 0);
-                if (resultCode == ConnectionResult.SERVICE_MISSING ||
-                        resultCode == ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED ||
-                        resultCode == ConnectionResult.SERVICE_DISABLED) {
-                    Dialog dialog = GooglePlayServicesUtil.getErrorDialog(resultCode, MapActivity.this, 1);
-                    dialog.show();
-                } else {
-                    String result = intent.getStringExtra("result");
-                    Toast.makeText(context,
-                            "Couldn't connect to Google service, result: " + result,
-                            Toast.LENGTH_LONG).show();
-                }
-                finish();
-            } else if (action.equals("loadAndDraw")) {  // WalkRecoder создал новую точку (записал в базу) - рисуем ее
-                walk.loadAndDraw(false);
-            } else if (action.equals("drawCurPosMarker")) {
-                curLocation = WalkRecorder.lastGoodLocation;
-                curLocationIsBad = WalkRecorder.curLocationIsOK <= 0;
-                drawCurPosMarker(curLocationIsBad);
-            } else if (action.equals("setZoomAndFocus")) { // Из Walk
-                setZoomAndFocus(1);
-                if (curLocation != null) {
-                    drawCurPosMarker(curLocationIsBad);
-                }
-                if (updateFromGalleryIntent != null) {
-                    updateFromGallery(updateFromGalleryIntent);
-                    updateFromGalleryIntent = null;
-                }
-//                drawPointInGalleryMarker(afInGalleryNumber);  // Точки уже загружены. Но артефакты еще нет!
-                // Перенесено в Walk
-                pointsAreLoaded = true;
-                updateOptionsMenu();
-            } else if (action.equals("toast")) {
-                Toast.makeText(MapActivity.this,
-                        intent.getStringExtra("text"),
-                        intent.getIntExtra("duration", Toast.LENGTH_SHORT) == Toast.LENGTH_SHORT ?
-                                Toast.LENGTH_SHORT : Toast.LENGTH_SHORT).show();
-            } else if (action.equals("updateFromGallery")) {
-                updateFromGallery(intent);
-            } else if (action.equals("finish")) { // from Gallery when pressed Up
-                finish();
-                Intent intent2 = new Intent(context, MainActivity.class);  // В некотрых случаях вываливается в рабочий стол
-                intent2.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP); // На всякий случай
-                startActivity(intent2);
-            } else if (action.equals("restartActivityIfFlagIsRaised")) {
-                if (Utils.restartActivityIfFlagIsRaised(MapActivity.this)) {
-                    return;
-                }
+            switch (action) {
+                case "showNotConnectedDialog":  // GoogleApiClient не подключтлся к сервису
+                    int resultCode = intent.getIntExtra("resultCode", 0);
+                    if (resultCode == ConnectionResult.SERVICE_MISSING ||
+                            resultCode == ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED ||
+                            resultCode == ConnectionResult.SERVICE_DISABLED) {
+                        Dialog dialog = GooglePlayServicesUtil.getErrorDialog(resultCode, MapActivity.this, 1);
+                        dialog.show();
+                    } else {
+                        String result = intent.getStringExtra("result");
+                        Toast.makeText(context,
+                                "Couldn't connect to Google service, result: " + result,
+                                Toast.LENGTH_LONG).show();
+                    }
+                    finish();
+
+                    break;
+                case "loadAndDraw":   // WalkRecoder создал новую точку (записал в базу) - рисуем ее
+                    walk.loadAndDraw(false);
+
+                    break;
+                case "onLocationChanged":   // Из gfMockerThread2
+                    onLocationChanged(Utils.str2Loc(intent.getStringExtra("location")));
+
+                    break;
+                case "setZoomAndFocus":  // Из Walk по окончании загрузки старой прогулки
+
+                    setZoomAndFocus();
+
+                    if (updateFromGalleryIntent != null) {
+                        updateFromGallery(updateFromGalleryIntent);
+                        updateFromGalleryIntent = null;
+                    }
+                    pointsAreLoaded = true;
+                    updateOptionsMenu();
+
+                    break;
+                case "toast":
+                    Toast.makeText(MapActivity.this,
+                            intent.getStringExtra("text"),
+                            intent.getIntExtra("duration", Toast.LENGTH_SHORT) == Toast.LENGTH_SHORT ?
+                                    Toast.LENGTH_SHORT : Toast.LENGTH_SHORT).show();
+
+                    break;
+                case "updateFromGallery":
+                    updateFromGallery(intent);
+
+                    break;
+                case "finish":  // from Gallery when pressed Up
+                    finish();
+                    Intent intent2 = new Intent(context, MainActivity.class);  // В некотрых случаях вываливается в рабочий стол
+
+                    intent2.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP); // На всякий случай
+
+                    startActivity(intent2);
+
+                    break;
+                case "restartActivityIfFlagIsRaised":
+                    if (Utils.restartActivityIfFlagIsRaised(MapActivity.this)) {
+                        return;
+                    }
+                    break;
             }
         }
     };
 
-    void setZoomAndFocus(int callNumber) {  // 1 - Walk попросил после того, как загрузил старые точки
-        // и MapIsLoaded, 2 -  из enterActiveMode'a, вызванного Walk'ом после того, как он нарисовал первую новую точку
-        Utils.logD(TAG, "setZoomAndFocus " + callNumber + " " + zoomAndFocusAreSet);
+    void setZoomAndFocus() {  // Несколько вызовов, выполняется только первый
+        Utils.logD(TAG, "setZoomAndFocus " + zoomAndFocusAreSet);
 
-        if (zoomAndFocusAreSet) {   // Не первый create
-            if (callNumber == 1) {
-                returnIfHasGone();
-            } else if (callNumber == 2) {
-                if (walk.points.size() > 0) { // Последнюю точку в фокус
-                    animateCamera(CameraUpdateFactory.
-                            newLatLng(Utils.loc2LatLng(walk.points.get(walk.points.size() - 1).location)));
-                }
-            }
-            Utils.logD(TAG, "setZoomAndFocus 1");
-            return;
-        }
-        if (walk.points.size() == 0) {
-            Utils.logD(TAG, "setZoomAndFocus 2");
-            return;
-        } else if (walk.points.size() == 1) {// || mode != MODE_PASSIVE) { // Самое начало прогулки
+        if (zoomAndFocusAreSet || !walk.mapIsLoaded) return;
+
+        int iRes = 0;
+        if (curLocation != null) {
+            iRes = 1;
             animateCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition(
-                    Utils.loc2LatLng(walk.points.get(walk.points.size() - 1).location), zoom0, 0, 0)));
-            Utils.logD(TAG, "setZoomAndFocus 3");
-        } else {
+                    Utils.loc2LatLng(curLocation), zoom0, 0, 0)));
+        } else if (walk.points.size() > 0) {
             showEntireRoute();
-            Utils.logD(TAG, "setZoomAndFocus 4");
+            iRes = 2;
         }
-//        zoomAndFocusAreSet = true;  Перенесено в animateCamera
+        zoomAndFocusAreSet = iRes>0;
+
+        Utils.logD(TAG, "setZoomAndFocus " + iRes);
     }
 
     void drawPointInGalleryMarker(int afInGalleryNumber) {
@@ -900,7 +1023,7 @@ public class MapActivity extends AppCompatActivity implements
             MyMarker.drawMarker(map,
                     otherMarkers, MARKER_POINT_IN_GALLERY,
                     MO_POINT_IN_GALLERY, new Location(""), "", "",
-                    null, null, null, -1, false, true);
+                    null, null, null, -1, 0,false, true);
         }
         Marker marker = otherMarkers.get(MARKER_POINT_IN_GALLERY);
         marker.setTitle("В галерее");
@@ -915,7 +1038,7 @@ public class MapActivity extends AppCompatActivity implements
             String action = intent.getStringExtra("action");
             Utils.logD(TAG, "Got a global message - " + action);
 
-            if (action.equals("stopRecording")) { // Из notification WalkRecorder
+            if ("stopRecording".equals(action)) { // Из notification WalkRecorder
                 enterPassiveMode();
             }
         }
@@ -968,34 +1091,36 @@ public class MapActivity extends AppCompatActivity implements
         for (int i = 0; i < walk.points.size(); i++) {
             builder.include(Utils.loc2LatLng(walk.points.get(i).location));
         }
-        if (mode == MODE_ACTIVE) {
-            if (curPosMarker != null) {
-                builder.include(curPosMarker.getPosition());
-            }
+        if (curPosMarker != null) {
+            builder.include(curPosMarker.getPosition());
         }
         LatLngBounds bounds;
         try {
             bounds = builder.build();
         } catch (Exception e) {
-            return; // Ни одной точки нет
+            return; // Ни одной точки нет. Или Error using newLatLngBounds(LatLngBounds, int): Map size can't be 0. Most likely, layout has not yet occured for the map view.  Either wait until layout has occurred or use newLatLngBounds(LatLngBounds, int, int, int) which allows you to specify the map's dimensions.
         }
         int padding = 50; // offset from edges of the map in pixels
         animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, padding));  // Zoom и Focus. Animate иногда зависает :(
     }
 
-    void drawCurPosMarker(boolean isBad) {
+    void drawCurPosMarker() {
         Utils.logD(TAG, "drawCurPosMarker");
 
         if (!mapIsVisible) return;
 
-        if (mode == MODE_PASSIVE && !whereAmIIsOn // Может быть
+        if (!whereAmIIsOn // Может быть
                 || curLocation == null) { // На всякий...
             return;
         }
+
         boolean isInfoWindowShown = curPosMarker != null && curPosMarker.isInfoWindowShown();
 
-        int curPosMarkerIndexNew = isBad ? MARKER_BAD_POSITION : getKindOfCurPosMarker();
-        String title = Utils.fullInfStr(curLocation, walk.initialAltitude);
+        String title = Utils.locationFullInfStr(curLocation,
+                walk.points.size() > 0 && walk.points.get(walk.points.size()-1).location.hasAltitude() ?
+                    walk.points.get(walk.points.size()-1).location.getAltitude() : Utils.IMPOSSIBLE_ALTITUDE,
+                walk.initialAltitude);
+        int curPosMarkerIndexNew = getKindOfCurPosMarker();
         if (curPosMarkerIndexNew != curPosMarkerIndex) {
             curPosMarkerIndex = curPosMarkerIndexNew;
             int markerKind =
@@ -1008,7 +1133,7 @@ public class MapActivity extends AppCompatActivity implements
                     null, null, null,
                     curPosMarkerIndex == MARKER_WITH_DIRECTION_1 ? curLocation.getBearing() :
                             curPosMarkerIndex == MARKER_WITH_DIRECTION_2 ? compas.getAzimuth() : -1,
-                    true, true);
+                    cursorPulsationsPerSecond,true, true);
             curPosMarker = curPosMarkers.get(0);
         } else {
             curPosMarker.setTitle(title);
@@ -1021,6 +1146,7 @@ public class MapActivity extends AppCompatActivity implements
         }
         if (showInfoWindow || isInfoWindowShown) {
             showInfoWindow = false; // Только самый первый раз
+            markerWithInfoWindow=0;
             curPosMarker.showInfoWindow();  // Refresh'им
         }
         drawAccuracyCircle();
@@ -1049,44 +1175,36 @@ public class MapActivity extends AppCompatActivity implements
 
     @Override
     public boolean onMarkerClick(final Marker marker) {
-/*
-        if (marker.equals(curPosMarker)) {
-            // 0 - ничего, 1 - info window, 2 - info window + accuracy circle, 3 - accuracy circle
-            showAccuracyCircle=(curPosMarkerViewKind+1) % 4;
-
-            if (curPosMarkerViewKind>0 && curPosMarkerViewKind<3) {
-                curPosMarker.showInfoWindow();
-            } else {
-                curPosMarker.hideInfoWindow();
-            }
-            drawAccuracyCircle();
-            return  true;
+        if (marker != curPosMarker) {
+            markerWithInfoWindow = marker.getSnippet() == null ? 0 : marker.getPosition().hashCode();
         }
-*/
         return false;
     }
 
     @Override
+    public void onInfoWindowClick (Marker marker) {
+        marker.hideInfoWindow();
+    }
+
+    @Override
     public void onClick(View v) {
-        if (v.getId() == MY_POSITION_BUTTON_ID) {
+        if (v == myPositionButton) {
             if (curLocation != null) {
                 meToTheCenter();
-            } else {
-                showEntireRoute();
             }
+        } else if (v == entireRouteButton) {
+            showEntireRoute();
         }
     }
 
-    void returnIfHasGone() {  // Если я ушел за экран, возвращаем
+    void returnIfHasGone() {  // Если я ушел за экран, возвращаем. Не работает с mock location
         Utils.logD(TAG, "returnIfHasGone");
 
-        StringBuilder s = new StringBuilder("");
-        if (map == null || walk == null || mode == MODE_PASSIVE
+        StringBuilder s = new StringBuilder();
+        if (map == null || walk == null // || mode == MODE_PASSIVE
                 || !walk.mapIsLoaded && Utils.set(s, "!walk.mapIsLoaded")
-                || curLocation == null && walk.points.size() == 0 &&
-                Utils.set(s, "curLocation == null && walk.points.size()==0")
-                || System.currentTimeMillis() - lastSaveTime < 5000 && // Не переворот
-                Utils.set(s, "System.currentTimeMillis() - lastSaveTime < 5000")
+                || curLocation == null &&
+                Utils.set(s, "curLocation == null")
         ) {
             Utils.logD(TAG, "returnIfHasGone 1: " + s);
             return;
@@ -1108,42 +1226,40 @@ public class MapActivity extends AppCompatActivity implements
 
         final Thread[] thread = {null};
         thread[0] = Utils.runX(
-                new Runnable() {
-                    public void run() {
-                        Utils.logD(TAG, "animateCamera: real start " + thread[0].getId());
-                        map.animateCamera(cameraUpdate,
-                                new GoogleMap.CancelableCallback() {
-                                    @Override
-                                    public void onFinish() {
-                                        Utils.logD(TAG, "animateCamera: stop1 " + thread[0].getId());
-                                        thread[0].interrupt();
-                                        animationIsRunning.set(false);
-                                        animateCameraWaitingThreads.set(
-                                                animateCameraWaitingThreads.indexOf(thread[0]), null);
-                                        zoomAndFocusAreSet = true;
-                                    }
-
-                                    @Override
-                                    public void onCancel() {
-                                        Utils.logD(TAG, "animateCamera: stop2 " + thread[0].getId());
-                                        thread[0].interrupt();
-                                        animationIsRunning.set(false);
-                                        animateCameraWaitingThreads.set(
-                                                animateCameraWaitingThreads.indexOf(thread[0]), null);
-                                    }
+                () -> {
+                    Utils.logD(TAG, "animateCamera: real start " + thread[0].getId());
+                    map.animateCamera(cameraUpdate,
+                            new GoogleMap.CancelableCallback() {
+                                @Override
+                                public void onFinish() {
+                                    Utils.logD(TAG, "animateCamera: stop1 " + thread[0].getId());
+                                    thread[0].interrupt();
+                                    animationIsRunning.set(false);
+                                    animateCameraWaitingThreads.set(
+                                            animateCameraWaitingThreads.indexOf(thread[0]), null);
+//                                    zoomAndFocusAreSet = true;
                                 }
-                        );
-                        animationIsRunning.set(true);
-                    }
-                }, animationIsRunning, -1);
+
+                                @Override
+                                public void onCancel() {
+                                    Utils.logD(TAG, "animateCamera: stop2 " + thread[0].getId());
+                                    thread[0].interrupt();
+                                    animationIsRunning.set(false);
+                                    animateCameraWaitingThreads.set(
+                                            animateCameraWaitingThreads.indexOf(thread[0]), null);
+                                }
+                            }
+                    );
+                    animationIsRunning.set(true);
+                }, animationIsRunning, -1, this);
         animateCameraWaitingThreads.add(thread[0]);
         Utils.logD(TAG, "animateCamera: start " + thread[0].getId());
     }
 
     int getKindOfCurPosMarker() {
-        // float speed = walkSettings.getFloat("recording_min_possible_speed",0.0f);  ClassCastException!!!
-        float minSpeed = Float.parseFloat(walkSettings.getString("recording_min_possible_speed", "0"));
-        if (minSpeed != 0 && (!curLocation.hasSpeed() || curLocation.getSpeed() < minSpeed) && turnCompasOn(true)) {
+        if (minPossibleSpeed != 0 && (!curLocation.hasSpeed()
+                || curLocation.getSpeed() < minPossibleSpeed)
+                && turnCompasOn(true)) {
             return MARKER_WITH_DIRECTION_2;
         } else if (curLocation.hasBearing()) {
             turnCompasOn(false);
@@ -1167,19 +1283,50 @@ public class MapActivity extends AppCompatActivity implements
         }
     }
 
-    void switchWhereAmI(boolean on) {
+    void switchWhereAmI(boolean on, boolean preserveFlag) {
         Utils.logD(TAG, "switchWhereAmI "+on);
 
-        whereAmIIsOn=on;
+        // if (on == whereAmIIsOn) return;
+        if (!preserveFlag)  whereAmIIsOn=on;
 
-        curLocation = null;
         if (on) {
-            if (googleApiClient==null) {
-                googleApiClient = new GoogleApiClient.Builder(this)
+            if (Utils.isEmulator()) {
+                mockerThread = WalkRecorder.startMocking((location)-> LocalBroadcastManager.getInstance(this).sendBroadcast(
+                        new Intent("DoInUIThread")
+                                .putExtra("action", "onLocationChanged")
+                                .putExtra("location", Utils.loc2Str(location))),
+                        "gfMockerThread2", 3000,
+                        Utils.nvl(curLocation2, Utils.str2Loc("55.75222 37.61556"))); // Москва, Кремль
+                return;
+            }
+            if (locationListener == null) {
+                // Постоянный, не пресоздается при первороте
+                locationListener = MapActivity::onLocationChanged;
+                // Тоже
+                googleApiClient = new GoogleApiClient.Builder(getApplicationContext())
                         .addApi(LocationServices.API)
-                        .addConnectionCallbacks(this)
-                        .addOnConnectionFailedListener(this)
- //                       .enableAutoManage(this, this)
+                        .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
+                            @Override
+                            public void onConnected(Bundle connectionHint) { // Google Api client
+                                curActivity.onConnected(connectionHint);
+                            }
+                            @Override
+                            public void onConnectionSuspended(int cause) {  // Сам восстановит
+                                Utils.logD(TAG, "onConnectionSuspended, cause=" + cause);
+                            }
+                        })
+                        .addOnConnectionFailedListener(new GoogleApiClient.OnConnectionFailedListener() {
+                            public void onConnectionFailed(ConnectionResult result) {  // Никогда не видел
+                                Utils.logD(TAG, "onConnectionFailed, result: " + result);
+
+                                LocalBroadcastManager.getInstance(curActivity).sendBroadcast(
+                                        new Intent("DoInUIThread")
+                                                .putExtra("action", "showNotConnectedDialog")  // Выдаст диалог "Установите новую версию"
+                                                .putExtra("resultCode", result.getErrorCode())
+                                                .putExtra("result", result.toString()));
+                            }
+                        })
+                //                       .enableAutoManage(this, this)
                         .build();
             }
             if (googleApiClient.isConnected()) {
@@ -1187,78 +1334,78 @@ public class MapActivity extends AppCompatActivity implements
             } else {
                 googleApiClient.connect();
             }
+
         } else {
-            LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
-//            googleApiClient = null;
             MyMarker.killMarker(curPosMarkers, 0);
             curPosMarkerIndex = -1;
+            if (myPositionButton != null)
+                myPositionButton.setVisibility(View.INVISIBLE);
+            if (mockerThread!=null) {
+                mockerThread.interrupt();
+                mockerThread = null;
+                curLocation2 = new Location(curLocation);
+            } else {
+                if (googleApiClient != null && googleApiClient.isConnected()) {
+                    LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, locationListener);
+                }
+            }
+            curLocation = null;
         }
-        ImageView v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
-                findViewById(MY_POSITION_BUTTON_ID);
-        v.setImageDrawable(!on ?
-                getResources().getDrawable(R.drawable.my_position_button_passive) :
-                liveMapIsOn ? getResources().getDrawable(R.drawable.my_position_button_live) :
-                getResources().getDrawable(R.drawable.my_position_button_active));
     }
 
-    @Override
-    public void onConnected(Bundle connectionHint) { // Google Api client
-        Utils.logD(TAG, "onConnectedQQ");
+    public void onConnected(Bundle connectionHint) {
+        Utils.logD(TAG, "onConnected");
+        requestLocationUpdates();
+    }
 
-        if (googleApiClient == null) { // 2 раза было !
-            return;
+    static void onLocationChanged(Location location)    {
+        Utils.logD(TAG, "onLocationChanged");
+
+        if (curActivity == null || curActivity.walk == null || !curActivity.walk.mapIsLoaded
+            || curActivity.animationIsRunning.get()) return;
+
+        boolean isFirst = curActivity.curLocation==null; // Первое после включения
+        if (isFirst) {
+            curActivity.curLocation = new Location("");
+        }
+        curActivity.curLocation.set(location);
+
+        if (curActivity.myPositionButton!=null) curActivity.myPositionButton.setVisibility(View.VISIBLE);
+        curActivity.drawCurPosMarker();
+
+        if (isFirst) {
+            if (!curActivity.zoomAndFocusAreSet) {
+                curActivity.setZoomAndFocus();
+            } else {
+                if (curActivity.returnIfHasGone) {
+                    curActivity.returnIfHasGone();
+                }
+            }
         }
 
-        int interval = 1;
+        if (curActivity.mode == MODE_ACTIVE) {
+            Intent intent = new Intent(curActivity.getApplicationContext(), WalkRecorder.class);
+            intent.putExtra("speedFromMap", location.getSpeed());
+            curActivity.startService(intent);
+        }
+    }
+
+    private void requestLocationUpdates() {
         LocationRequest locationRequest = LocationRequest.create();
-        locationRequest.setInterval(interval * 1000);
-        locationRequest.setFastestInterval(interval * 1000);
+        locationRequest.setInterval(currentLocationRequestInterval * 1000);
+        locationRequest.setFastestInterval(currentLocationRequestInterval * 1000);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        LocationServices.FusedLocationApi.removeLocationUpdates(
+                googleApiClient, locationListener);
         LocationServices.FusedLocationApi.requestLocationUpdates(
-                googleApiClient, locationRequest, this);
+                googleApiClient, locationRequest, locationListener);
     }
 
-    public void onConnectionFailed(ConnectionResult result) {  // Никогда не видел
-        Utils.logD(TAG, "onConnectionFailed, result: " + result.toString());
-
-        LocalBroadcastManager.getInstance(this).sendBroadcast(
-                new Intent("DoInUIThread")
-                        .putExtra("action", "showNotConnectedDialog")  // Выдаст диалог "Установите новую версию"
-                        .putExtra("resultCode", result.getErrorCode())
-                        .putExtra("result", result.toString()));
-    }
-
-    @Override
-    public void onConnectionSuspended(int cause) {  // Сам восстановит
-        Utils.logD(TAG, "onConnectionSuspended, cause=" + cause);
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-        Utils.logD(TAG, "onLocationChanged "+location);
-
-        boolean isFirst= curLocation==null; // Первое после включения
-        if (isFirst) {
-            curLocation = new Location("");
-        }
-        curLocation.set(location);
-        drawCurPosMarker(false);
-        if (isFirst) {
-            meToTheCenter();
-        }
-    }
     void switchLiveMap(boolean on) {
         Utils.logD(TAG, "switchLiveMap " + on);
-
-        liveMapIsOn=on;
         rotateMap(on);
-        ImageView v = getSupportFragmentManager().findFragmentById(R.id.map).getView().
-                findViewById(MY_POSITION_BUTTON_ID);
-        v.setImageDrawable(liveMapIsOn ?
-                getResources().getDrawable(R.drawable.my_position_button_live) :
-                getResources().getDrawable(R.drawable.my_position_button_active));
-        v.invalidate();
     }
+
     void rotateMap(boolean on) {
         if (curPosMarkerIndex == MARKER_WITH_DIRECTION_1 || curPosMarkerIndex == MARKER_WITH_DIRECTION_2) {
             CameraPosition pos = map.getCameraPosition();
@@ -1274,6 +1421,51 @@ public class MapActivity extends AppCompatActivity implements
                         .build();
             }
             map.animateCamera(CameraUpdateFactory.newCameraPosition(pos));
+        }
+    }
+
+    void processNewAudioRecords(String sDir, long tStart, long tStop) {
+        File dir = new File(sDir);
+        try {
+            for (File file : dir.listFiles(
+                    (file) -> {return file.lastModified() >= tStart && file.lastModified() <= tStop;})) {
+    //            addPoint(Walk.AFKIND_SPEECH, Uri.fromFile(file), file.getAbsolutePath(), // При просмотре будет FileUriExposedException
+    //                    "onActivityResult RECORD_SPEECH_REQUEST_CODE", false);
+                addToMediaProvider(file);
+            }
+            ;
+        } catch (Exception e) {
+        }
+    }
+
+    void addToMediaProvider(File file) {
+        Utils.logD(TAG, "addToMediaProvider " + file.getAbsolutePath());
+
+//        String file2Path =  Utils.createDirIfNotExists(getFilesDir().getAbsolutePath(),
+        String file2Path =  Utils.createDirIfNotExists(getExternalFilesDir(null).getAbsolutePath(),
+                DIR_AUDIO) +  // Именно External, иначе снаружи не увидят - FileNotFoundException
+                "/" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) +
+                "." + Utils.getFileExtension(file.getName());
+// Internal - /data/data/com.gf169.gfwalk.debug/files/Audio/20200528_223728.mp3
+// External - /storage/emulated/0/Android/data/com.gf169.gfwalk.debug/files/Audio/20200529_151339.mp3
+//            /storage/emulated/0 = /sdcard - link
+        File file2 = Utils.copyFile(file.getAbsolutePath(), file2Path);
+        if (file2 == null) {
+            Toast.makeText(
+                    this, "Failed to copy " + file.getAbsolutePath() + " into " + file2Path,
+                    Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+//        file.setReadable(true, false); // И так читается
+
+        ContentValues values = new ContentValues(1);
+//        values.put(MediaStore.Audio.Media.DATA, file.getAbsolutePath()) ;  // Не видит!
+        values.put(MediaStore.Audio.Media.DATA, file2Path) ;
+        Uri uri = getContentResolver().insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values);
+        if (uri == null) {
+            Toast.makeText(this, "Failed to insert " + file2Path + " into MediaStore",
+                    Toast.LENGTH_LONG).show();
         }
     }
 }

@@ -50,7 +50,7 @@
 
     <string name="no_address">Нет адреса</string>
 
-    <string name="walk_recording_ended">Запись прогулки закончена</string>
+    <string name="walk_recording_ended">Запись прогулки остановлена</string>
     <string name="waiting_for_GPS">Ждем геоданные... Если GPS и Wi-Fi выключены, включите</string>
     <!--string name="waiting_for_GPS">Ждем геоданные... Если Геоданные выключены, включите</string-->
     <string name="location_not_defined">Положение не определено!</string>
@@ -71,7 +71,7 @@
     <string name="af_walk_icon_sign">Иконка</string>
     <string name="warning_icon_delete">Вы удаляете иконку прогулки! Не забудьте назначить новую</string>
 
-    <string name="walk_start_time">Время начала</string>
+    <string name="walk_start">Начало</string>
     <string name="walk_start_place">Место начала</string>
     <string name="walk_duration">Продолжительность</string>
     <string name="walk_length">Длина пути</string>
@@ -122,15 +122,15 @@
         положения, метры</string>
     <string name="summary_recording_min_location_accuracy">Если точность определения положения точки
         ниже этой величины, точка не создается. По умолчанию 50</string>
-    <string name="title_recording_location_request_interval">Интервал между определениями вашего
+    <string name="title_map_current_location_request_interval">Интервал между определениями текущего
         местоположения, секунды</string>
-    <string name="summary_recording_location_request_interval">Чем меньше, тем точнее отражается на
-        карте ваше положение и тем больше расход батареи. По умолчанию 10</string>
+    <string name="summary_map_current_location_request_interval">Чем меньше, тем точнее отражается на
+        карте ваше положение и тем больше расход батареи. По умолчанию 3</string>
     <string name="title_recording_max_possible_speed">Максимально возможная скорость, км/час</string>
     <string name="summary_recording_max_possible_speed">Установите 400 при поездке на скоростном
         поезде, 1000 - в самолете, в ракете - спросите у водителя. По умолчанию 250</string>
-    <string name="title_recording_min_possible_speed">Скорость стояния, км/час</string>
-    <string name="summary_recording_min_possible_speed">При движении со скоростью МЕНЬШЕЙ этой программа
+    <string name="title_map_min_possible_speed">Скорость стояния, км/час</string>
+    <string name="summary_map_min_possible_speed">При движении со скоростью МЕНЬШЕЙ этой программа
         будет считать, что вы стоите, и стрелка маркера текущего положения будет указывать направление
         вашего взгляда, а не направление движения - ЕСЛИ В ВАШЕМ ТЕЛЕФОНЕ ЕСТЬ ГЕОМАГНИТНЫЙ ДАТЧИК.
         По умолчанию 2.4</string>
@@ -145,7 +145,7 @@
         километраж, вычисленные с учетом приостановок записи прогулки. Будут показаны в скобках.
         По умолчанию Нет</string>
     <string name="title_map_cursor_pulsations_per_second">Число пульсаций маркера текущего положения в секунду</string>
-    <string name="summary_map_cursor_pulsations_per_second">0 - без пульсации, по умолчанию 1</string>
+    <string name="summary_map_cursor_pulsations_per_second">0 - без пульсации. По умолчанию 1</string>
 
     <string name="title_gallery_settings">Параметры показа прогулки в галерее</string>
     <string name="summary_gallery_ribbon_height">По умолчанию 10</string>
@@ -156,4 +156,5 @@
 
     <string name="press_plus">Нажмите + в строке меню чтобы начать запись прогулки</string>
     <string name="goodbye">До свиданья:( Не могу работать без разрешений</string>
+    <string name="press_back_once_more">Для прекращения записи прогулки нажмите Назад дважды</string>
 </resources>

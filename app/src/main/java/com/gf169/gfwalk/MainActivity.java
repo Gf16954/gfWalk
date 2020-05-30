@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DialogFragment;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -13,6 +14,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -24,18 +27,21 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 
+import com.google.firebase.analytics.FirebaseAnalytics;
+import com.google.firebase.crashlytics.FirebaseCrashlytics;
+
 public class MainActivity extends Activity {
     static final String TAG="gfMainActivity";
 
     static SimpleDateFormat dateFormat=new SimpleDateFormat();
     static TimeZone timeZone;
-    static BitmapFactory.Options bfo = new BitmapFactory.Options();
 
     static final String FILTER_STR_NOT_IN_BIN ="ifnull("+DB.KEY_DELETED+",0)=0";
     static final String FILTER_STR_IN_BIN ="ifnull("+DB.KEY_DELETED+",0)=1";
@@ -57,20 +63,19 @@ public class MainActivity extends Activity {
     static final int SETTINGS_REQUEST_CODE=9;
     static String pleaseDo="";  // Просьбы других activity к этой сделать что-нибудь
 
+    static Context appContext;
     SharedPreferences globalSettings;
 
     protected void onCreate(Bundle savedInstanceState) {
-        Utils.logD(TAG, "onCreate");
+        Utils.logD(TAG, "onCreate " + this);
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_main);
+        appContext = getApplicationContext();
+        Utils.ini(appContext);
         MyMarker.curActivity=this;
-        Utils.curActivity=this;
-        WalkFilterDialogFragment.curActivity=this;
+        WalkFilterDialogFragment.mainActivity=this;
 
-//        AirbrakeNotifier.register(this,
-//                "f17762b5ea71e1af3bcf37ba0cb2a67c",
-//                "", false);
+        setContentView(R.layout.activity_main);
 
         if (savedInstanceState != null) {
             filterParms=savedInstanceState.getBundle("filterParms");
@@ -82,7 +87,7 @@ public class MainActivity extends Activity {
 
         globalSettings=SettingsActivity.getCurrentWalkSettings(this, -1);
 
-        Utils.grantMeAllDangerousPermissions();
+        Utils.grantMeAllDangerousPermissions(this);
         DB.dbInit(this);
         condenseAFs();
         makeWalklist();
@@ -275,6 +280,8 @@ public class MainActivity extends Activity {
                 firstVisiblePos=0;
                 selectedPos=0;
                 pleaseDo="refresh entire list, restore selection";
+                Utils.FALogEvent("new_walk", "walkId", walkId + "");
+
                 showWalkOnMap(MainActivity.this, walkId, MapActivity.MODE_RESUME,
                         TimeZone.getDefault().getID(), false, -1);
             }
@@ -306,13 +313,15 @@ public class MainActivity extends Activity {
     }
     @Override
     protected void onDestroy() {
-        Utils.logD(TAG, "onDestroy");
+        Utils.logD(TAG, "onDestroy " + this);
         super.onDestroy();
     }
     @Override
     protected void onStart() {
         Utils.logD(TAG, "onStart");
         super.onStart();
+
+//        new Handler().removeCallbacksAndMessages(null); // Очищаем лишние нажатия
     }
     @Override
     protected void onResume() {
@@ -414,7 +423,7 @@ public class MainActivity extends Activity {
             return;
         }
         Utils.logD(TAG, "showWalkOnMap: "+activity.getLocalClassName());
-        if (activity.getLocalClassName().equals("MapActivity")) {
+        if (activity.getLocalClassName().endsWith("MapActivity")) {
             ((MapActivity) activity).enterResumeMode();
         } else {
             Intent intent = new Intent(activity, MapActivity.class);

@@ -28,6 +28,7 @@
         android:enabled="true"
         android:visible="false"
         />
+<!-- 2 раза back
     <item android:id="@+id/action_pause"
         android:title="@string/action_pause"
         res-auto:showAsAction="never|withText"
@@ -35,6 +36,7 @@
         android:enabled="true"
         android:visible="false"
         />
+-->
     <item android:id="@+id/action_resume"
         android:title="@string/action_resume"
         res-auto:showAsAction="always"
@@ -54,42 +56,42 @@
           res-auto:showAsAction="never"
           android:enabled="true"
           android:visible="false"
+          android:checkable="true"
+        />
+    <item android:id="@+id/action_show_afs"
+        android:title="@string/action_show_afs"
+        res-auto:showAsAction="never"
+        android:enabled="true"
+        android:visible="true"
+        android:checkable="true"
         />
     <item android:id="@+id/action_live_map"
           android:title="@string/action_turn_live_map_on"
           res-auto:showAsAction="never"
           android:enabled="true"
           android:visible="false"
+          android:checkable="true"
         />
-    <item android:id="@+id/action_show_entire_route"
-        android:title="@string/action_show_entire_route"
+    <item android:id="@+id/action_show_accuracy_circle"
+        android:title="@string/action_show_accuracy_circle"
         res-auto:showAsAction="never"
         android:enabled="true"
         android:visible="false"
+        android:checkable="true"
         />
     <item android:id="@+id/action_map_type_satelite"
           android:title="@string/action_map_type_satelite"
           res-auto:showAsAction="never"
           android:enabled="true"
           android:visible="true"
+          android:checkable="true"
         />
     <item android:id="@+id/action_map_type_terrain"
           android:title="@string/action_map_type_terrain"
           res-auto:showAsAction="never"
           android:enabled="true"
           android:visible="true"
-        />
-    <item android:id="@+id/action_show_afs"
-          android:title="@string/action_show_afs"
-          res-auto:showAsAction="never"
-          android:enabled="true"
-          android:visible="true"
-        />
-    <item android:id="@+id/action_show_accuracy_circle"
-          android:title="@string/action_show_accuracy_circle"
-          res-auto:showAsAction="never"
-          android:enabled="true"
-          android:visible="false"
+          android:checkable="true"
         />
     <item android:id="@+id/action_info"
           android:title="@string/action_info"

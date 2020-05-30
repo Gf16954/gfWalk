@@ -11,17 +11,27 @@ import android.database.Cursor;
 import android.graphics.Color;
 import android.location.Geocoder;
 import android.location.Location;
+import android.util.Log;
+
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.google.android.gms.location.DetectedActivity;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.model.Dash;
+import com.google.android.gms.maps.model.Dot;
+import com.google.android.gms.maps.model.Gap;
 import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.PatternItem;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.RoundCap;
 
 import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.Vector;
@@ -70,11 +80,14 @@ public class Walk {
     class Point {
         long pointId; // Id записи в базе
         boolean flagResume; // Начало продолжения или всей прогулки
-        Long time; // Время прибытия в точку по абсолютному времени, см. WalkRecorder.Clock
+        Long time; // Время прибытия в точку по абсолютному времени (мс), см. WalkRecorder.Clock
         Long timeEnd; // Время убытия
         Location location;
         String debugInfo;
         String address;
+        int activityType; // На чем сюда приехали (DetectedActivity.IN_VEHICLE, ON_FOOT, и т.п.)
+        float batteryCharge; // %
+
                 // Дальше все рабочее, в базу не идет
         Point pointBefore; // Предыдущая в массиве points
         float length; // в метрах
@@ -86,14 +99,18 @@ public class Walk {
         String markerTitle;
         Vector<Marker> markers=new Vector<>(AFKIND_MAX-AFKIND_MIN+1); // По видам артефаков
 
-        public void load(Cursor cursor, Point pointBefore) {
+        void load(Cursor cursor, Point pointBefore) {
             pointId=cursor.getLong(cursor.getColumnIndex(DB.KEY_POINTID));
             flagResume=cursor.getInt(cursor.getColumnIndex(DB.KEY_POINTFLAGRESUME))>0;
-            time=cursor.getLong(cursor.getColumnIndex(DB.KEY_POINTTIME));
-            timeEnd=cursor.getLong(cursor.getColumnIndex(DB.KEY_POINTTIMEEND));
+            time=cursor.getLong(cursor.getColumnIndex(DB.KEY_POINTTIME)); // Прибытие в точку
+            timeEnd=cursor.getLong(cursor.getColumnIndex(DB.KEY_POINTTIMEEND));  // Убытие
             location=Utils.str2Loc(cursor.getString(cursor.getColumnIndex(DB.KEY_POINTLOCATION)));
             debugInfo=cursor.getString(cursor.getColumnIndex(DB.KEY_POINTDEBUGINFO));
             address=cursor.getString(cursor.getColumnIndex(DB.KEY_POINTADDRESS));
+            String s=cursor.getString(cursor.getColumnIndex(DB.KEY_POINTACTIVITYTYPE));
+            activityType=s==null ? -1 : Integer.parseInt(s);
+            s=cursor.getString(cursor.getColumnIndex(DB.KEY_POINTBATTERYCHARGE));
+            batteryCharge=s==null ? 0 : Float.parseFloat(s);
 
             this.pointBefore=pointBefore;
 
@@ -102,8 +119,8 @@ public class Walk {
                 durationNetto = 0;
                 length=lengthNetto=0;
             } else {
-                duration=pointBefore.duration+
-                time-pointBefore.time;
+                // duration=pointBefore.duration+time-pointBefore.time;
+                duration=time-startTime;
                 length=pointBefore.length+Utils.getDistance(
                         Utils.loc2LatLng(location), Utils.loc2LatLng(pointBefore.location));
                 if (flagResume) {
@@ -114,15 +131,26 @@ public class Walk {
                     lengthNetto=pointBefore.lengthNetto+length-pointBefore.length;
                 }
             }
+
             if (initialAltitude==Utils.IMPOSSIBLE_ALTITUDE && location.hasAltitude()) {
                 initialAltitude = location.getAltitude();
             }
+            float batteryDischargeRate = -1;
+            if (BuildConfig.BUILD_TYPE.equals("debug") && pointBefore != null)
+                        batteryDischargeRate = (pointBefore.batteryCharge - batteryCharge) /
+                                (time-pointBefore.time)*1000*3600;  // %/час
             totalStr=formTotalStr(walkSettings,
                     duration, length, durationNetto, lengthNetto,
-                    flagResume || pointBefore==null ? duration : pointBefore.duration+
-                            (pointBefore.timeEnd>0 ? pointBefore.timeEnd-pointBefore.time : 0),
-                    flagResume || pointBefore==null ? length : pointBefore.length,
-                    0,0,Utils.fullInfStr(location, initialAltitude)+" "+debugInfo);
+                    flagResume ? duration : pointBefore.duration,
+                    flagResume ? length : pointBefore.length,
+                    0,0,
+                    Utils.locationFullInfStr(location,
+                            pointBefore!=null && pointBefore.location.hasAltitude() ?
+                                pointBefore.location.getAltitude() : location.getAltitude(),
+                            initialAltitude)
+                    + " "+WalkRecorder.ARState.getName(activityType)
+                    + (batteryDischargeRate >= 0 ? " "+String.format("%.1f",batteryDischargeRate)+"%/h" : "")
+                    + (BuildConfig.BUILD_TYPE.equals("debug") ? " "+debugInfo : ""));
             markerTitle=formMarkerTitle();
         }
         String formMarkerTitle() {
@@ -182,9 +210,14 @@ public class Walk {
         this.map = mapActivity.map;
         walkSettings=mapActivity.walkSettings;
 
+//        for (int i=0; i<lastMarkers.size(); i++) {
+//            lastMarkers.set(i,null);
+//        }
+
         for (int i=0; i<lastMarkers.capacity(); i++) {
             lastMarkers.add(null);
         }
+
         geocoder = new Geocoder(mapActivity,Locale.getDefault());
         timeFormat = new SimpleDateFormat("HH:mm");
         timeZone=getTimeZone(mapActivity);
@@ -199,20 +232,25 @@ public class Walk {
         startTime=cursor.getLong(cursor.getColumnIndex(DB.KEY_STARTTIME));
         cursor.close();
     }
+
     Walk(Activity activity, int walkId) {  // Используется в Main'e и Gallery
         this.walkId=walkId;
         walkSettings=SettingsActivity.getCurrentWalkSettings(activity, walkId);
-        if (activity.getLocalClassName().equals("GalleryActivity")) {
+        if (activity.getLocalClassName().endsWith("GalleryActivity")) {
             return;
         }
         timeZone=getTimeZone(activity);
         timeFormat.setTimeZone(timeZone);
         dateFormat.setTimeZone(timeZone);
 
+//        Cursor dbCursor = DB.db.query(DB.TABLE_POINTS, null, null, null, null, null, null);
+//        String[] columnNames = dbCursor.getColumnNames();
+
         Cursor cursor;
         cursor = DB.db.query(DB.TABLE_POINTS, new String[]{
                         DB.KEY_POINTID, DB.KEY_POINTFLAGRESUME, DB.KEY_POINTTIME, DB.KEY_POINTTIMEEND,
-                        DB.KEY_POINTLOCATION, DB.KEY_POINTDEBUGINFO, DB.KEY_POINTADDRESS},
+                        DB.KEY_POINTLOCATION, DB.KEY_POINTDEBUGINFO, DB.KEY_POINTADDRESS,
+                        DB.KEY_POINTACTIVITYTYPE,DB.KEY_POINTBATTERYCHARGE},
                 DB.KEY_POINTWALKID + "=" + walkId,
                 null, null, null,
                 DB.KEY_POINTID);
@@ -231,7 +269,6 @@ public class Walk {
                 DB.KEY_AFPOINTID+","+DB.KEY_AFTIME);
         if (cursor != null && cursor.moveToFirst()) {
             do {
-
                 AFs.add(new AF(cursor));
                 int i=AFs.size()-1;
                 if (!AFs.get(i).deleted && AFs.get(i).filePath!=null &&
@@ -246,6 +283,7 @@ public class Walk {
         }
         cursor.close();
     }
+
     TimeZone getTimeZone(Activity activity) {
         DB.dbInit(activity);
         Cursor cursor = DB.db.query(DB.TABLE_WALKS, new String[]{DB.KEY_TIMEZONE},
@@ -256,16 +294,21 @@ public class Walk {
         cursor.close();
         return  timeZone;
     }
+
     static int create() {
         ContentValues newValues=new ContentValues();
         newValues.put(DB.KEY_STARTTIME, System.currentTimeMillis());
         newValues.put(DB.KEY_TIMEZONE, TimeZone.getDefault().getID());
         newValues.put(DB.KEY_COMMENT, "");
         newValues.put(DB.KEY_ICONAFID, -1);   // Еще не назначена
-        return (int) DB.db.insert(DB.TABLE_WALKS, null, newValues);
+        int i = (int) DB.db.insert(DB.TABLE_WALKS, null, newValues);
+        Utils.logD(TAG, "Walk #"+i+" created");
+        return i;
     }
+
     void loadAndDraw(final boolean isFirstCall) {  // Загружаем и рисуем появившиеся в базе точки
         String threadName="gfLoadAndDraw #" + points.size();
+        Utils.logD(TAG, "Thread "+threadName+" is starting...");
         new Thread(
                 new Runnable() {
                     @Override
@@ -273,26 +316,24 @@ public class Walk {
                         loadAndDraw2(isFirstCall);
                     }
                 },threadName).start();
-        Utils.logD(TAG, "Thread "+threadName+" is starting...");
     }
-    synchronized void loadAndDraw2(boolean isFirstCall) {  // isFirstCall - первый вызов из MapActivity
-        Utils.logD(TAG, "loadAndDraw2 on UI thread");
+
+    synchronized private void loadAndDraw2(boolean isFirstCall) {  // isFirstCall - первый вызов из MapActivity
+        Utils.logD(TAG, "loadAndDraw2");
 
         boolean toGetAddress = true;
         ContentValues values = new ContentValues();
         DB.dbInit(mapActivity);
 
-        int lastPointInd = points.size()-1;  // Последняя загруженная
+        int lastPointInd = points.size()-1;  // В массиве points - последняя загруженная
         int pointInd=lastPointInd;  // Сюда будем писать
         String s="";
         if (lastPointInd>=0) {
-            s=" AND "+DB.KEY_POINTID+" >= "+points.get(lastPointInd).pointId; // Начиная с последней !
+            s=" AND "+DB.KEY_POINTID+">="+points.get(lastPointInd).pointId; // Начиная с последней !
         } else {
             pointInd=0;
         }
-        Cursor cursor = DB.db.query(DB.TABLE_POINTS, new String[]{
-                DB.KEY_POINTID, DB.KEY_POINTFLAGRESUME, DB.KEY_POINTTIME, DB.KEY_POINTTIMEEND,
-                DB.KEY_POINTLOCATION, DB.KEY_POINTDEBUGINFO, DB.KEY_POINTADDRESS},
+        Cursor cursor = DB.db.query(DB.TABLE_POINTS, null,  // Все поля
                 DB.KEY_POINTWALKID + "=" + walkId + s,
                 null, null, null,
                 DB.KEY_POINTID);
@@ -337,7 +378,7 @@ public class Walk {
                 }
                 pointInd++;
                 Utils.logD(TAG, "A point is loaded: #"+(points.size()-1)+" "+
-                        point.time+" "+point.timeEnd+" "+point.address+" "+point.debugInfo);
+                        point.time+" "+point.timeEnd+" "+point.address+" "+point.debugInfo+" "+point.activityType);
             } while (cursor.moveToNext());
         }
         if (isFirstCall) { // Точки загружены, можно установить Zoom - дожидаемся пока загрузится карта и просим
@@ -376,6 +417,7 @@ public class Walk {
                 }
             });
         }
+        Utils.logD(TAG, "loadAndDraw2 ended");
     }
     void drawOnePoint(int iPoint, boolean isLastOld, boolean isLastNew) {
         Utils.logD(TAG, "A point is  beeing drawn: #"+iPoint);
@@ -392,7 +434,7 @@ public class Walk {
                         DB.KEY_AFID, DB.KEY_AFPOINTNUMBER, DB.KEY_AFPOINTID, DB.KEY_AFTIME,
                         DB.KEY_AFKIND, DB.KEY_AFURI, DB.KEY_AFFILEPATH, DB.KEY_AFCOMMENT,
                         DB.KEY_AFDELETED},
-                DB.KEY_AFPOINTID+"="+points.get(iPoint).pointId+
+                DB.KEY_AFPOINTID + "=" + points.get(iPoint).pointId +
                 /* " AND +DB.KEY_AFDELETED+ "=0" + */ s,
                 null, null, null,
                 DB.KEY_AFTIME); // Order !!! Увы, время не абсолютное, а из файла, при сдвиге времени могут сразу не показаться, но потом все равно покажутся
@@ -436,7 +478,7 @@ public class Walk {
                         prevPoint.location,
                         prevPoint.markerTitle,
                         prevPoint.totalStr,
-                        null, null, null, -1, true, false);
+                        null, null, null, -1, 0, true, false);
             }
         }
         // Маркер последней точки
@@ -449,7 +491,7 @@ public class Walk {
                     point.location,
                     point.markerTitle,
                     point.totalStr,
-                    null, null, null, bearing, true, isLastOld);
+                    null, null, null, bearing, 0,true, isLastOld);
         }
         if (point.flagResume) { // Маркер начала или продолжения
             MyMarker.drawMarker(map,
@@ -458,7 +500,7 @@ public class Walk {
                     point.location,
                     point.markerTitle,
                     point.totalStr,
-                    null, null, null, -1, true, isLastOld);
+                    null, null, null, -1, 0,true, isLastOld);
         }
         if (isLastNew) {   // Конечный маркер у новой последней точки
             MyMarker.drawMarker(map,
@@ -467,7 +509,7 @@ public class Walk {
                     point.location,
                     point.markerTitle,
                     point.totalStr,
-                    null, null, null, -1, true, true);
+                    null, null, null, -1, 0, true, true);
         }
         // Отрезок
         if (prevPoint!=null && !isLastOld) {
@@ -475,9 +517,11 @@ public class Walk {
                 public void run() {
                     map.addPolyline(new PolylineOptions()
                             .add(Utils.loc2LatLng(point.location), Utils.loc2LatLng(prevPoint.location))
-                            .width(mapActivity.getResources().getInteger(R.integer.line_width))
-                            .zIndex(-100)
-                            .color(point.flagResume ? Color.GRAY : Color.BLUE));
+                            .width(Utils.dpyToPx(mapActivity.getResources().getInteger(R.integer.line_width)))
+                            .endCap(new RoundCap())
+                            .pattern(getLinePattern(point))
+                            .color(getLineColor(point))
+                            .zIndex(-100));
                 }
             });
         }
@@ -486,6 +530,29 @@ public class Walk {
             drawAFMarkers(point);
         }
     }
+    int getLineColor(Point point) {
+        if (point.flagResume) return mapActivity.getResources().getColor(R.color.line_pause);
+
+        switch (point.activityType) {
+            case DetectedActivity.IN_VEHICLE:
+                return mapActivity.getResources().getColor(R.color.line_inVehicle);
+            case DetectedActivity.ON_BICYCLE:
+                return mapActivity.getResources().getColor(R.color.line_onBicycle);
+            case DetectedActivity.RUNNING:
+                return mapActivity.getResources().getColor(R.color.line_running);
+            case DetectedActivity.WALKING:
+                return mapActivity.getResources().getColor(R.color.line_walking);
+        }
+
+        return mapActivity.getResources().getColor(R.color.line_unknown);
+    }
+    List<PatternItem> getLinePattern(Point point) {
+//        PatternItem[] patterns={new Dot()};
+        int w=Utils.dpyToPx(mapActivity.getResources().getInteger(R.integer.line_width));
+        PatternItem[] patterns={new Dash(w*2), new Gap(w)};
+        return point.flagResume ? Arrays.asList(patterns) : null;
+    }
+
     void drawAFMarkers(Point point) {
         for (int markerKind=AFKIND_MIN; markerKind<=AFKIND_MAX; markerKind++) {
             drawAFMarkers2(point, markerKind, false);
@@ -537,27 +604,41 @@ public class Walk {
                     numberOfAFs == 0 ?
                             mapActivity.getResources().getString(R.string.af_has_gone) :
                             numberOfAFs == 1 ? null : "" + numberOfAFs,
-                    -1, true, true);
+                    -1, 0, true, true);
         } else if (clearIfEmpty && point.markers.get(markerIndex)!=null) {
             MyMarker.killMarker(point.markers,markerIndex);
         }
     }
+
     static String formTotalStr(SharedPreferences settings,
                                long duration, float length,
                                long durationNetto, float lengthNetto,
                                long durationPointBefore, float lengthPointBefore,
                                long durationPointBeforeNetto, float lengthPointBeforeNetto,
                                String tail) {
-        boolean insNettoValues=settings.getBoolean("map_show_netto_values_in_markers", false);
-        String s=Utils.durationStr(duration, insNettoValues ? durationNetto : 0)
-                +" "+Utils.lengthStr(length, insNettoValues ? lengthNetto : 0);
+        return formTotalStr(
+                settings.getBoolean("map_show_details_in_markers", false),
+                settings.getBoolean("map_show_netto_values_in_markers", false),
+                duration, length, durationNetto, lengthNetto,
+                durationPointBefore, lengthPointBefore, durationPointBeforeNetto, lengthPointBeforeNetto,
+                tail);
+    }
+
+    static String formTotalStr(boolean showDetailsInMarkers, boolean showNettoVauesInMarkers,
+                               long duration, float length,
+                               long durationNetto, float lengthNetto,
+                               long durationPointBefore, float lengthPointBefore,
+                               long durationPointBeforeNetto, float lengthPointBeforeNetto,
+                               String tail) {
+        String s=Utils.durationStr(duration, showNettoVauesInMarkers ? durationNetto : 0)
+                +" "+Utils.lengthStr(length, showNettoVauesInMarkers ? lengthNetto : 0);
         if (duration!=durationPointBefore) {
-            s=s+" "+Utils.speedStr(duration-durationPointBefore,length-lengthPointBefore,
-                    insNettoValues ? durationNetto-durationPointBeforeNetto : 0,
-                    insNettoValues ? lengthNetto-lengthPointBeforeNetto : 0);
+            s +=" "+Utils.speedStr(duration-durationPointBefore,length-lengthPointBefore,
+                    showNettoVauesInMarkers ? durationNetto-durationPointBeforeNetto : 0,
+                    showNettoVauesInMarkers ? lengthNetto-lengthPointBeforeNetto : 0);
         }
-        if (settings.getBoolean("map_show_details_in_markers", false) & tail!=null) {
-            s=s+" "+tail;
+        if (showDetailsInMarkers & tail!=null) {
+            s=s+" \n"+tail;
         }
         return s;
     }

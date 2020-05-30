@@ -1,5 +1,6 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:anroid="http://schemas.android.com/apk/res-auto">
+    android:key="root_preferences">
+
     <PreferenceCategory
         android:key="recording_settings"
         android:title="@string/title_recording_settings"
@@ -36,14 +37,6 @@
             android:defaultValue="50"
         		/>
         <EditTextPreference
-            android:key="recording_location_request_interval"
-            android:title="@string/title_recording_location_request_interval"
-            android:summary="@string/summary_recording_location_request_interval"
-            android:numeric="integer"
-            android:maxLength="3"
-            android:defaultValue="10"
-            />
-        <EditTextPreference
             android:key="recording_max_possible_speed"
             android:title="@string/title_recording_max_possible_speed"
             android:summary="@string/summary_recording_max_possible_speed"
@@ -51,19 +44,35 @@
             android:maxLength="4"
             android:defaultValue="250"
             />
-        <EditTextPreference
-            android:key="recording_min_possible_speed"
-            android:title="@string/title_recording_min_possible_speed"
-            android:summary="@string/summary_recording_min_possible_speed"
-            android:inputType="numberDecimal"
-            android:maxLength="4"
-            android:defaultValue="2.4"
-            />
     </PreferenceCategory>
     <PreferenceCategory
         android:key="map_settings"
         android:title="@string/title_map_settings"
         android:persistent="true">
+        <EditTextPreference
+            android:key="map_current_location_request_interval"
+            android:title="@string/title_map_current_location_request_interval"
+            android:summary="@string/summary_map_current_location_request_interval"
+            android:numeric="integer"
+            android:maxLength="3"
+            android:defaultValue="10"
+            />
+        <EditTextPreference
+            android:key="map_min_possible_speed"
+            android:title="@string/title_map_min_possible_speed"
+            android:summary="@string/summary_map_min_possible_speed"
+            android:inputType="numberDecimal"
+            android:maxLength="4"
+            android:defaultValue="2.4"
+            />
+        <EditTextPreference
+            android:key="map_cursor_pulsations_per_second"
+            android:title="@string/title_map_cursor_pulsations_per_second"
+            android:summary="@string/summary_map_cursor_pulsations_per_second"
+            android:inputType="numberDecimal"
+            android:maxLength="3"
+            android:defaultValue="1"
+            />
         <CheckBoxPreference
             android:key="map_show_address_in_markers"
             android:title="@string/title_map_show_address_in_markers"
@@ -82,14 +91,6 @@
             android:summary="@string/summary_map_show_netto_values_in_markers"
             android:defaultValue="false"
         		/>
-        <EditTextPreference
-            android:key="map_cursor_pulsations_per_second"
-            android:title="@string/title_map_cursor_pulsations_per_second"
-            android:summary="@string/summary_map_cursor_pulsations_per_second"
-            android:inputType="numberDecimal"
-            android:maxLength="3"
-            android:defaultValue="1"
-        		/>
     </PreferenceCategory>
     <PreferenceCategory
         android:key="gallery_settings"
@@ -104,19 +105,24 @@
             android:defaultValue="10"
         		/>
     </PreferenceCategory>
-</PreferenceScreen>
-
-<!--
+    <PreferenceCategory
+        android:key="developer_options"
+        android:title="Developer options"
+        android:persistent="true">
+        <EditTextPreference
+            android:key="developer_devices"
+            android:title="Developer devices"
+            android:summary="ANDROID_IDs, space delimited"
+        		/>
+        <EditTextPreference
+            android:key="developer_logcat_recorder_application"
+            android:title="Logcat recorder application"
+            android:summary="Package name"
+        		/>
         <CheckBoxPreference
-            android:key="map_show_altitude_in_markers"
-            android:title="@string/title_map_show_altitude_in_markers"
-            android:summary="@string/summary_map_show_altitude_in_markers"
+            android:key="developer_start_logcat_recorder_application"
+            android:title="Start logcat recorder application"
             android:defaultValue="false"
-        		/>
-        <CheckBoxPreference
-            android:key="map_show_point_number_in_markers"
-            android:title="@string/title_map_show_point_number_in_markers"
-            android:summary="@string/summary_map_show_point_number_in_markers"
-            android:defaultValue="true"
-        		/>
--->
+            />
+    </PreferenceCategory>
+</PreferenceScreen>

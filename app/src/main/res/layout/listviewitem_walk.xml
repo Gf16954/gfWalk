@@ -45,7 +45,7 @@
         android:singleLine="true"
         android:textSize="@dimen/listviewitem_textSize1"
         android:textColor="#0000FF"
-        android:text="qq eeeeee ffffffffffffff"/>
+        android:text="eeeee ffffffffffffff"/>
     <TextView
         android:id="@+id/textViewString3"
         android:paddingLeft="2dp"

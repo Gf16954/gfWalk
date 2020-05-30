@@ -6,7 +6,10 @@ package com.gf169.gfwalk;
 import android.app.Activity;
 import android.app.Fragment;
 import android.app.FragmentTransaction;
+import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PermissionInfo;
@@ -18,14 +21,19 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.widget.Toast;
 
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import com.google.android.gms.maps.model.LatLng;
+import com.google.firebase.analytics.FirebaseAnalytics;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,19 +49,19 @@ import java.util.TimeZone;
 public class Utils {
     static final String TAG = "gfUtils";
 
-    static Activity curActivity;
+    static Context appContext;
     static DisplayMetrics metrics = Resources.getSystem().getDisplayMetrics();
     static final double IMPOSSIBLE_ALTITUDE = -11111;
 
-    static void copyFile(String src, String dst) {
+    static void ini(Context appContext) {
+        Utils.appContext = appContext;
+    }
+
+    static File copyFile(String src, String dst) {
         Utils.logD(TAG, "copyFile " + src + " " + dst);
 
-        FileInputStream fis = null;
-        FileOutputStream fos = null;
-
-        try {
-            fis = new FileInputStream(new File(src));
-            fos = new FileOutputStream(dst);
+        try (FileInputStream fis = new FileInputStream(new File(src));
+             FileOutputStream fos = new FileOutputStream(dst)) {
             while (true) {
                 int i = fis.read();
                 if (i != -1) {
@@ -64,16 +72,11 @@ public class Utils {
             }
             fos.flush();
             Utils.logD(TAG, "copyFile OK");
+            return new File(dst);
         } catch (Exception e) {
             e.printStackTrace();
-            Utils.logD(TAG, "copyFile ERROR");
-        } finally {
-            try {
-                fos.close();
-                fis.close();
-            } catch (Exception e) {
-            }
-            ;
+            Utils.logD(TAG, "copyFile ERROR " + src + "->" + dst);
+            return null;
         }
     }
 
@@ -152,7 +155,7 @@ public class Utils {
         return new LatLng(location.getLatitude(), location.getLongitude());
     }
 
-    public static float getDistance(LatLng location, LatLng location2) {
+    public static float getDistance(LatLng location, LatLng location2) {  // в метрах
         float[] res = new float[1];
         Location.distanceBetween(
                 location.latitude, location.longitude,
@@ -176,7 +179,7 @@ public class Utils {
                 return "NoAddress 2";  // Ни разу не видел
             }
         } catch (IOException e) {  // Возможно, нет интернета
-            return curActivity.getResources().getString(R.string.no_address); // Timed out waiting for response from server
+            return appContext.getResources().getString(R.string.no_address); // Timed out waiting for response from server
         }
     }
 
@@ -213,7 +216,7 @@ public class Utils {
             String s2 = String.format("%.3f", lengthNetto / 1000);
             s = s.equals(s2) ? s : s + "(" + s2 + ")";
         }
-        return s + " km";
+        return s + "km";
     }
 
     public static String speedStr(long duration, float length,
@@ -229,28 +232,33 @@ public class Utils {
         return s + " km/h";
     }
 
-    public static String altitudeStr(double alt, double altIni) { // 150 m (+5)
-        return String.format("%.0f", alt) + " m" +
-                (altIni == Utils.IMPOSSIBLE_ALTITUDE || altIni == alt ?
-                        "" : String.format(" (%+.0f)", alt - altIni));
+    public static String altitudeStr(double alt, double altPrev, double altIni) { // 150 m (+5,-10)
+        String s=String.format("%.0f", alt) + "m";
+        String s2=
+                (altPrev == Utils.IMPOSSIBLE_ALTITUDE /*|| altPrev == alt*/ ?
+                "(?" : String.format("(%+.0f", alt - altPrev))+
+                (altIni == Utils.IMPOSSIBLE_ALTITUDE /*|| altIni == alt*/ ?
+                        ",?)" : String.format(",%+.0f)", alt - altIni));
+        if (s2.equals("(?,?)")) return s;
+        else return s+s2;
     }
 
     public static String accuracyStr(double accuracy) { // 150 m(+5)
-        return "±" + String.format("%.0f", accuracy) + " m";
+        return "±" + String.format("%.0f", accuracy) + "m";
     }
 
-    public static String fullInfStr(Location location, double altIni) {
+    public static String locationFullInfStr(Location location, double altPrev, double altIni) {
         return
                 String.format("%.6f%s%.6f",  // 6-ой знак - 0.1 м
                         location.getLatitude(), "° ", location.getLongitude()) + "°"
                         + (location.hasAltitude() ?
-                        " " + Utils.altitudeStr(location.getAltitude(), altIni) : "")
+                        " " + Utils.altitudeStr(location.getAltitude(), altPrev, altIni) : "?m")
                         + (location.hasAccuracy() ?
-                        " " + Utils.accuracyStr(location.getAccuracy()) : "")
+                        " " + Utils.accuracyStr(location.getAccuracy()) : "±?")
                         + (location.hasSpeed() ?
-                        " " + String.format("%.1f", location.getSpeed() * 3.6) + " km/h" : "")
+                        " " + String.format("%.1f", location.getSpeed() * 3.6) : "?") + "km/h"
                         + (location.hasBearing() ?
-                        " " + String.format("%.0f", location.getBearing()) + "°" : "")
+                        " " + String.format("%.0f", location.getBearing()) : "?") + "°"
                 ;
     }
 
@@ -280,7 +288,7 @@ public class Utils {
     }
 
     public static Uri getImageContentUri(String filePath) {
-        Cursor cursor = curActivity.getContentResolver().query(
+        Cursor cursor = appContext.getContentResolver().query(
                 MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 new String[]{MediaStore.Images.Media._ID},
                 MediaStore.Images.Media.DATA + "=? ",
@@ -294,7 +302,7 @@ public class Utils {
     }
 
     public static Uri getVideoContentUri(String filePath) {
-        Cursor cursor = curActivity.getContentResolver().query(
+        Cursor cursor = appContext.getContentResolver().query(
                 MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                 new String[]{MediaStore.Video.Media._ID},
                 MediaStore.Video.Media.DATA + "=? ",
@@ -307,8 +315,9 @@ public class Utils {
         }
     }
 
-    static String createDirIfNotExists(String path) {
-        File file = new File(Environment.getExternalStorageDirectory(), path);
+    static String createDirIfNotExists(String directory, String path) {
+        // File file = new File(Environment.getExternalStorageDirectory(), path);
+        File file = new File(directory, path);
         if (!file.exists()) {
             if (!file.mkdirs()) {
                 Utils.logD(TAG, "Could not create folder " + file.getName());
@@ -316,6 +325,12 @@ public class Utils {
             }
         }
         return file.getPath();
+    }
+
+    static String getFileExtension(String fileName) {
+        int i = fileName.lastIndexOf(".");
+        if (i>=0) return fileName.substring(i + 1);
+        return "";
     }
 
     static String padr(String s, int n, char c) {
@@ -330,7 +345,7 @@ public class Utils {
         return (int) metrics.ydpi * dpy / 160;
     }
 
-    static <T extends Object> T nvl(T x, T y) {
+    static <T> T nvl(T x, T y) {
         return x == null ? y : x;
     }
 
@@ -354,21 +369,23 @@ public class Utils {
         activity.recreate();
     }
 
-    static SharedPreferences restartFlags;
+    private static SharedPreferences restartFlags;
 
-    static void raiseRestartActivityFlag(String activityName, boolean on) {
+    static void raiseRestartActivityFlag(String activityName, boolean on) {   // "MainActivity"
         if (restartFlags == null) {
-            restartFlags = curActivity.getSharedPreferences("RestartFlags", Activity.MODE_PRIVATE);
+            restartFlags = appContext.getSharedPreferences("RestartFlags", Activity.MODE_PRIVATE);
         }
+
         restartFlags.edit().putBoolean(activityName, on).commit();
     }
 
     static boolean restartActivityIfFlagIsRaised(Activity activity) {
         if (restartFlags == null) {
-            restartFlags = curActivity.getSharedPreferences("RestartFlags", Activity.MODE_PRIVATE);
+            restartFlags = appContext.getSharedPreferences("RestartFlags", Activity.MODE_PRIVATE);
         }
-        if (restartFlags.getBoolean(activity.getLocalClassName(), false)) {
-            restartFlags.edit().putBoolean(activity.getLocalClassName(), false).commit();
+        String activityName = getNthPiece(activity.getLocalClassName(), -1, "\\.");
+        if (restartFlags.getBoolean(activityName, false)) {
+            restartFlags.edit().putBoolean(activityName, false).commit();
             restartActivity(activity);
             return true;
         }
@@ -383,27 +400,56 @@ public class Utils {
         return b <= a && c >= a;
     }
 
+    public static class IntegerX {   // mutable
+        int value;
+
+        public IntegerX(int value) {
+            this.value=value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public void setValue(int value) {
+            this.value = value;
+        }
+    }
+
+    public static class FloatX {
+        float value;
+
+        public FloatX(float value) {
+            this.value=value;
+        }
+
+        public float getValue() {
+            return value;
+        }
+
+        public void setValue(float value) {
+            this.value = value;
+        }
+    }
+
     public static void logD(String tag, String msg) {
         if (BuildConfig.DEBUG) {
             Log.d(tag, msg);
         }
     }
 
-    static Thread runX(final Runnable runnable, final Object object, final int maxSeconds) {
-        // Если object свободен, захватывает его и запускает runnanble, если нет - дожидается в течение maxSeconds
+    static Thread runX(final Runnable runnable, final Object object, final int maxSeconds,
+                       Activity activity) {
+        // Если object свободен, захватывает его и запускает runnanble в main thread, если нет - дожидается в течение maxSeconds
         // Object не должен быть autoboxed !!!
         Thread thread = new Thread(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        synchronized (object) {
-                            curActivity.runOnUiThread(runnable);
-                            try {
-                                Thread.sleep(
-                                        maxSeconds >= 0 ? maxSeconds * 1000 : 60 * 60 * 24 * 1000);
-                            } catch (Exception e) {
-                                return;
-                            }
+                () -> {
+                    synchronized (object) {
+                        activity.runOnUiThread(runnable);
+                        try {
+                            Thread.sleep(
+                                    maxSeconds >= 0 ? maxSeconds * 1000 : 60 * 60 * 24 * 1000);
+                        } catch (Exception e) {
                         }
                     }
                 }, "gfRunX");
@@ -412,35 +458,39 @@ public class Utils {
         return thread;
     }
 
-    static final List<String> neededPermissions = new LinkedList<String>();
-
-    static int getNotGrantedPermissions() {  // Не даденные опасные permissions в neededPermissions
+    static private final List<String> neededPermissions = new LinkedList<>();
+    static private int getNotGrantedPermissions() {  // Не даденные опасные permissions в neededPermissions
         if (Build.VERSION.SDK_INT < 23) return 0;
         try {
             // Scan manifest for dangerous permissions not already granted
-            PackageManager packageManager = curActivity.getPackageManager();
-            PackageInfo packageInfo = packageManager.getPackageInfo(curActivity.getPackageName(),
+            PackageManager packageManager = appContext.getPackageManager();
+            PackageInfo packageInfo = packageManager.getPackageInfo(appContext.getPackageName(),
                     PackageManager.GET_PERMISSIONS);
             neededPermissions.clear();
             for (String permission : packageInfo.requestedPermissions) {
-                PermissionInfo permissionInfo = packageManager.getPermissionInfo(permission, PackageManager.GET_META_DATA);
-//                if (permissionInfo.protectionLevel != PermissionInfo.PROTECTION_DANGEROUS)
-                if ((permissionInfo.protectionLevel & PermissionInfo.PROTECTION_MASK_BASE) !=
-                        PermissionInfo.PROTECTION_DANGEROUS &&
-                     (permissionInfo.protectionLevel & PermissionInfo.PROTECTION_FLAG_PRE23) != 0
-                ) continue;
-                if (curActivity.checkCallingOrSelfPermission(permission) == PackageManager.PERMISSION_GRANTED)
-                    continue;
-                neededPermissions.add(permission);
+                try {
+                    PermissionInfo permissionInfo = packageManager.getPermissionInfo(permission, PackageManager.GET_META_DATA);
+                    if ((permissionInfo.protectionLevel & PermissionInfo.PROTECTION_MASK_BASE) !=
+                            PermissionInfo.PROTECTION_DANGEROUS &&
+                         (permissionInfo.protectionLevel & PermissionInfo.PROTECTION_FLAG_PRE23) != 0
+                    ) continue;
+                    if (appContext.checkCallingOrSelfPermission(permission) == PackageManager.PERMISSION_GRANTED)
+                        continue;
+                    neededPermissions.add(permission);
+                } catch (PackageManager.NameNotFoundException e) {
+                    Log.e(TAG, String.format("Unable to query for permission: %s", e.getMessage()));
+                    continue; // Такого еще нет в этом Android'e
+                }
             }
         } catch (Exception error) {
-            Log.e(TAG, String.format("Unable to query for permission: %s", error.getMessage()));
-            return -1;
+            // Не может быть
         }
         return neededPermissions.size();
     }
 
     static public class RequestFragment extends Fragment {
+        Activity activity;
+
         @Override
         public void onStart() {
             super.onStart();
@@ -453,57 +503,109 @@ public class Utils {
                 int requestCode, String[] permissions, int[] grantResults) {
             if (requestCode != 12345) return;
             FragmentTransaction fragmentTransaction =
-                    curActivity.getFragmentManager().beginTransaction();
+                    activity.getFragmentManager().beginTransaction();
             fragmentTransaction.remove(this);
             fragmentTransaction.commit();
 
             if (getNotGrantedPermissions() > 0) { // Не дал
-                Toast.makeText(curActivity, getResources().getString(R.string.goodbye),
+                Toast.makeText(appContext, getResources().getString(R.string.goodbye),
                         Toast.LENGTH_LONG).show();
-                curActivity.finish();
+                activity.finish();
             }
-            return;
         }
     }
 
-    ;
-
-    static void grantMeAllDangerousPermissions() {
+    static void grantMeAllDangerousPermissions(Activity activity) {
         if (getNotGrantedPermissions() > 0) {
             FragmentTransaction fragmentTransaction =
-                    curActivity.getFragmentManager().beginTransaction();
+                    activity.getFragmentManager().beginTransaction();
             RequestFragment requestFragment = new RequestFragment();
+            requestFragment.activity = activity;
             fragmentTransaction.add(0, requestFragment);
             fragmentTransaction.commit();
         }
     }
 
-    static void setUncaughtExceptionHandler(final Runnable runnable) {
+    static void setDefaultUncaughtExceptionHandler(final Runnable runnable) {  // static - for all threads!
         if (runnable == null) {  // TODO: Культурно восстановить старый
             Thread.setDefaultUncaughtExceptionHandler(null);
         } else {
             final Thread.UncaughtExceptionHandler oldHandler =
                     Thread.getDefaultUncaughtExceptionHandler();
             Thread.setDefaultUncaughtExceptionHandler(
-                    new Thread.UncaughtExceptionHandler() {
-                        @Override
-                        public void uncaughtException(
-                                Thread paramThread,
-                                Throwable paramThrowable
-                        ) {
-                            //Do your own error handling here
-                            runnable.run();
+                    (paramThread, paramThrowable) -> {
+                        //Do your own error handling here
+                        runnable.run();
 
-                            if (oldHandler != null)
-                                oldHandler.uncaughtException(
-                                        paramThread,
-                                        paramThrowable
-                                ); //Delegates to Android's error handling - обычный диалог
-                            else
-                                System.exit(2); //Prevents the service/app from freezing
-                        }
+                        if (oldHandler != null)
+                            oldHandler.uncaughtException(
+                                    paramThread,
+                                    paramThrowable
+                            ); //Delegates to Android's error handling - обычный диалог
+                        else
+                            System.exit(2); //Prevents the service/app from freezing
                     });
         }
     }
 
+    static void toast(Context context, String text, int duration) { // Просит того, кто может показать - кто впереди
+        Intent intent=new Intent("DoInUIThread")
+                .putExtra("action", "toast")
+                .putExtra("text", text)
+                .putExtra("duration", duration);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+    }
+
+    static int getAfKind(String fileName) {  // Оставлено на всякий случай
+        if (fileName==null) return 0;
+        String ext="";
+        if (fileName.lastIndexOf(".")>=0) {
+            ext=fileName.substring(fileName.lastIndexOf(".")+1);
+        }
+        if (ext.equalsIgnoreCase("jpg")) return Walk.AFKIND_PHOTO;
+        if (ext.equalsIgnoreCase("mp4")) return Walk.AFKIND_VIDEO;
+        if (ext.equalsIgnoreCase("m4a") || ext.equalsIgnoreCase("3gpp")) return Walk.AFKIND_SPEECH;
+        if (ext.equalsIgnoreCase("txt")) return Walk.AFKIND_TEXT;
+        return 0;
+    }
+
+    public interface Consumer<T> {  // Родной требует SDK>=24
+        void accept(T t);
+    }
+
+    static boolean isEmulator() { // Работает с Android Studio virtual devices, но не с BlueStacks:(
+/*      TelephonyManager telephonyManager=(TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+        String IMEI=telephonyManager.getDeviceId();
+        return = IMEI!=null && !IMEI.isEmpty() && IMEI.replace("0", "").isEmpty(); // У эмулятора куча нулей
+ Требует     <uses-permission android:name="android.permission.READ_PHONE_STATE" /> */
+//    if (true) return true;
+        return Build.MODEL.equals("Android SDK built for x86") ||
+                Build.MODEL.equals("AOSP on IA Emulator") ||
+                "marlin".equals(Build.DEVICE);  // BlueStacks
+    }
+
+    static String getDeviceId() {
+        return Settings.Secure.getString(appContext.getContentResolver(),
+                Settings.Secure.ANDROID_ID);
+    }
+
+    static void FALogEvent(String eventName, String paramName, String paramValue) {
+//        Log.d("FALogEvent",eventName+" "+eventValue);
+// Сам пишет:  D/FA: Logging event ...  Не пишет!
+        Bundle bundle = new Bundle();
+        bundle.putString(paramName, paramValue);
+        FirebaseAnalytics.getInstance(appContext).logEvent(eventName, bundle);
+    }
+
+    static String getNthPiece(String s, int n, String d) {
+        //  [ ] \ / ^ $ . | ? * + ( ) { } экранировать \\
+        if (s == null) return null;
+        String[] a = s.split(d);
+        try {
+            if (n>=0) return a[n];
+            return a[a.length + n];
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

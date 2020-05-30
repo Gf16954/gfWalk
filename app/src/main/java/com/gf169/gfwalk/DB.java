@@ -33,6 +33,8 @@ public class DB {
     public static final String KEY_POINTADDRESS = "address";
     public static final String KEY_POINTDEBUGINFO = "origin";
     public static final String KEY_POINTCOMMENT= "comment";
+    public static final String KEY_POINTBATTERYCHARGE= "reserve";
+    public static final String KEY_POINTACTIVITYTYPE= "reserve2";
 
     public static final String TABLE_AFS = "AFs";
     public static final String KEY_AFID = "_id";
@@ -83,9 +85,9 @@ public class DB {
                         + " ," + KEY_POINTADDRESS
                         + " ," + KEY_POINTDEBUGINFO
                         + " ," + KEY_POINTCOMMENT
-                        + " ," + "reserve"
-                        + " ," + "reserve2" + " integer"
-                        + " ," + "reserve3" + "blob"
+                        + " ," + "reserve"  + " float"  // Battery charge, 0-1
+                        + " ," + "reserve2" + " integer" // Activity type
+                        + " ," + "reserve3" + " blob"
                         + " )";
 
         private static final String CREATE_TABLE_AFS =
@@ -102,7 +104,7 @@ public class DB {
                         + " ," + KEY_AFDELETED + " boolean"
                         + " ," + "reserve"
                         + " ," + "reserve2" + " integer"
-                        + " ," + "reserve3" + "blob"
+                        + " ," + "reserve3" + " blob"
                         + " )";
 
         public DatabaseHelper(Context context) {

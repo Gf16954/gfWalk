@@ -22,7 +22,7 @@
     <dimen name="walkinfo_textSize1">15dp</dimen>
     <dimen name="walkinfo_textSize3">13dp</dimen>
 
-    <integer name="line_width">1</integer>
+    <integer name="line_width">3</integer> <!-- dp -->
     <integer name="text_on_bmp_height">25</integer> <!-- % -->
     <integer name="text_on_bmp_padding">5</integer> <!-- % -->
 </resources>

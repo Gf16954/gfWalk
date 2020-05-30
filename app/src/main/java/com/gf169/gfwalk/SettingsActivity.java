@@ -5,11 +5,16 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.preference.EditTextPreference;
 import android.preference.Preference;
+import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
+import android.preference.PreferenceScreen;
+import android.util.Log;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -24,24 +29,34 @@ public class SettingsActivity extends Activity
     static Map<String, ?> oldSettingsMap;
     Map<String, ?> newSettingsMap;
     static PreferenceFragment preferenceFragment;
-    static Activity thisActivity;
+    static Activity curActivity;
 
     public static class MyPreferenceFragment extends PreferenceFragment {
         @Override
         public void onCreate(Bundle savedInstanceState) {
+            // Выполняется не в New, а в getFragmentManager().beginTransaction().replace(android.R.id.content, preferenceFragment).commit();
+            Utils.logD(TAG, "MyPreferenceFragment onCreate");
             super.onCreate(savedInstanceState);
             getPreferenceManager().setSharedPreferencesName(preferencesFileName);
             addPreferencesFromResource(R.xml.preferences);
-            findPreference("recording_max_possible_speed").setEnabled(walkId>=0); // !!!
-/*
-            Iterator iterator = oldSettingsMap.keySet().iterator();
-            while (iterator.hasNext()) {
-                updateSummary((String) iterator.next());
+
+            findPreference("recording_max_possible_speed").setEnabled(walkId >= 0); // !!!
+            SensorManager sensorManager =
+                    (SensorManager) curActivity.getSystemService(Context.SENSOR_SERVICE);
+            if (sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD) == null) {
+                findPreference("map_min_possible_speed").setEnabled(false);
             }
-*/
-            for (String key: oldSettingsMap.keySet()) {
-                updateSummary(key);
+            findPreference("developer_options").setEnabled(walkId<0);  // Вся группа
+
+            if (!(" "+curSettings.getString("developer_devices","")+" ").contains(
+                    " "+Utils.getDeviceId()+" ") &&
+                    !"1891453df5be6242".equals(Utils.getDeviceId())) {  // Xiaomi Redmi Note 7
+                                                                        // com.dp.logcatapp
+                PreferenceScreen rootPreferences = (PreferenceScreen) findPreference("root_preferences");
+                ((PreferenceCategory) rootPreferences.findPreference("developer_options")).removeAll();
+                rootPreferences.removePreference(findPreference("developer_options"));
             }
+
             setRetainInstance(true); // !!!
         }
     }
@@ -50,11 +65,7 @@ public class SettingsActivity extends Activity
         Utils.logD(TAG, "onCreate");
         super.onCreate(savedInstanceState);
 
-//        AirbrakeNotifier.register(this,
-//                "f17762b5ea71e1af3bcf37ba0cb2a67c",
-//                "", false);
-
-        thisActivity=this;
+        curActivity=this;
 
         if (savedInstanceState==null) {
             savedInstanceState=getIntent().getExtras();
@@ -78,24 +89,6 @@ public class SettingsActivity extends Activity
                 getResources().getString(R.string.walk_settings_header)+walkId;
         setTitle(s);
 
-/* Studio 2.0 не разрешает :(
-        preferenceFragment=new PreferenceFragment() {
-            @Override
-            public void onCreate(Bundle savedInstanceState) {
-                super.onCreate(savedInstanceState);
-                getPreferenceManager().setSharedPreferencesName(preferencesFileName);
-                addPreferencesFromResource(R.xml.preferences);
-                findPreference("recording_max_possible_speed").setEnabled(walkId>=0); // !!!
-
-                Iterator iterator = oldSettingsMap.keySet().iterator();
-                while (iterator.hasNext()) {
-                    updateSummary((String) iterator.next());
-                }
-
-                setRetainInstance(true); // !!!
-            }
-        };
-*/
         preferenceFragment=new MyPreferenceFragment();
         getFragmentManager().beginTransaction().replace(android.R.id.content, preferenceFragment).commit();
     }
@@ -207,13 +200,13 @@ public class SettingsActivity extends Activity
 
         if (pref instanceof EditTextPreference) {
             String[] s=((String) pref.getSummary()).split(
-                    thisActivity.getResources().getString(R.string.default_word));
+                    curActivity.getResources().getString(R.string.default_word));
             String s3=s[0];
-            if (s.length>1) { // В summary есть "..., по умолчанию ..." - должно быть всегда !
+            if (s.length>1) { // В summary есть "По умолчанию" - должно быть всегда !
                 String s2 = s[1].split(",")[0].trim();  // Значение по умолчанию. Ф-ции getDefaultValue нет :(
-                s3+=thisActivity.getResources().getString(R.string.default_word)+" "+s2;
+                s3+=curActivity.getResources().getString(R.string.default_word)+" "+s2;
                 if (!curSettings.getString(key,"").equals(s2)) {
-                    s3+=thisActivity.getResources().getString(R.string.set_word) +
+                    s3+=curActivity.getResources().getString(R.string.set_word) +
                             " "+curSettings.getString(key, "");
                 }
             }

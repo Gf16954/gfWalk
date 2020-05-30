@@ -20,9 +20,8 @@ import java.util.Date;
 public class WalkFilterDialogFragment extends DialogFragment implements View.OnClickListener {
     static final String TAG = "gfWalkFilterDlgFragment";
 
-    static MainActivity curActivity;
+    static MainActivity mainActivity;
     View v;
-
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -44,10 +43,11 @@ public class WalkFilterDialogFragment extends DialogFragment implements View.OnC
         v.findViewById(R.id.buttonApplyFilter).setOnClickListener(this);
         v.findViewById(R.id.buttonClearFilter).setOnClickListener(this);
 
-        setFilterParms(v, curActivity.filterParms);
+        setFilterParms(v, mainActivity.filterParms);
 
         return v;
     }
+
     public void onClick(View v) {
         Utils.logD(TAG, ""+((Button) v).getText());
 
@@ -59,14 +59,17 @@ public class WalkFilterDialogFragment extends DialogFragment implements View.OnC
             setFilterParms((View) v.getParent(), null);
         }
     }
+
     public void onDismiss(DialogInterface dialog) { // При возврате в Main
         Utils.logD(TAG, "onDismiss "+new Date().toString());
         super.onDismiss(dialog);
     }
+
     public void onCancel(DialogInterface dialog) {  // При возврате в Main
         Utils.logD(TAG, "onCancel "+new Date().toString());
         super.onCancel(dialog);
     }
+
     void setFilterParms(View v, Bundle filterParms) {
         ViewGroup vg=(ViewGroup) v.findViewById(R.id.radioButtonsBean);
         TextView tv=(TextView) v.findViewById(R.id.textViewCommentContains2);
@@ -78,6 +81,7 @@ public class WalkFilterDialogFragment extends DialogFragment implements View.OnC
             tv.setText(filterParms.getString("commentContains",""));
         }
     }
+
     void formFilterParmsAndStr() {
         Bundle b=new Bundle();
         String s;
@@ -99,11 +103,11 @@ public class WalkFilterDialogFragment extends DialogFragment implements View.OnC
             s=s+" AND "+DB.KEY_COMMENT+" like '%"+tv.getText()+"%'";
             b.putString("commentContains", ""+tv.getText());
         }
-        curActivity.filterStr=s;
+        mainActivity.filterStr=s;
         if (s.equals(MainActivity.FILTER_STR_NOT_IN_BIN)) {
-            curActivity.filterParms=null;
+            mainActivity.filterParms=null;
         } else {
-            curActivity.filterParms=b;
+            mainActivity.filterParms=b;
         }
     }
 }

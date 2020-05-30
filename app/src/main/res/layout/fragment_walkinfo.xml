@@ -16,19 +16,19 @@
         >
 
         <TextView
+            android:id="@+id/textViewStart"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="@dimen/walkinfo_paddingHor1"
+            android:textSize="@dimen/walkinfo_textSize1"
+            android:text="@string/walk_start"/>
+        <TextView
             android:id="@+id/textViewStartTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingLeft="@dimen/walkinfo_paddingHor1"
-            android:textSize="@dimen/walkinfo_textSize1"
-            android:text="@string/walk_start_time"/>
-        <TextView
-            android:id="@+id/textViewStartTime2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignBottom="@id/textViewStartTime"
-            android:layout_alignParentRight="true"
-            android:paddingRight="@dimen/walkinfo_paddingHor1"
+            android:layout_alignBottom="@id/textViewStart"
+            android:layout_alignParentEnd="true"
+            android:paddingEnd="@dimen/walkinfo_paddingHor1"
             android:textSize="@dimen/walkinfo_textSize1"
             android:textColor="@color/walkinfo_color1"
             android:textStyle="bold"
@@ -36,17 +36,9 @@
 
         <TextView
             android:id="@+id/textViewStartPlace"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/textViewStartTime"
-            android:paddingLeft="@dimen/walkinfo_paddingHor1"
-            android:textSize="@dimen/walkinfo_textSize1"
-            android:text="@string/walk_start_place"/>
-        <TextView
-            android:id="@+id/textViewStartPlace2"
-            android:layout_width="@dimen/walkinfo_startPlaceWidth"
-            android:layout_height="wrap_content"
-            android:layout_alignTop="@id/textViewStartPlace"
+            android:layout_below="@id/textViewStart"
             android:layout_alignParentRight="true"
             android:paddingRight="@dimen/walkinfo_paddingHor1"
             android:gravity="right"
@@ -59,7 +51,7 @@
             android:id="@+id/textViewDuration"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@id/textViewStartPlace2"
+            android:layout_below="@id/textViewStartPlace"
             android:paddingLeft="@dimen/walkinfo_paddingHor1"
             android:textSize="@dimen/walkinfo_textSize1"
             android:text="@string/walk_duration"/>
@@ -206,6 +198,7 @@
             android:layout_marginBottom="2dp"
             android:layout_marginLeft="@dimen/walkinfo_paddingHor1"
             />
+<!--
         <TextView
             android:id="@+id/textViewComment"
             android:layout_width="wrap_content"
@@ -214,6 +207,7 @@
             android:paddingLeft="@dimen/walkinfo_paddingHor1"
             android:textSize="@dimen/walkinfo_textSize1"
             android:text="@string/walk_comment"/>
+-->
         <!-- Это нужно для перехвата фокуса у EditText чтобы не вылезала клавиатура -->
         <LinearLayout
             android:layout_width="0dp"
@@ -226,17 +220,20 @@
             android:id="@+id/textViewComment2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/textViewComment"
+            android:layout_below="@id/textViewAFsNumber"
             android:layout_marginLeft="@dimen/walkinfo_paddingHor1"
-            android:paddingLeft="10dp"
+            android:paddingLeft="0dp"
             android:layout_marginRight="@dimen/walkinfo_paddingHor1"
             android:paddingRight="0dp"
             android:textSize="@dimen/walkinfo_textSize1"
             android:textColor="@color/walkinfo_color2"
             android:inputType="textMultiLine"
+            android:hint="@string/walk_comment"
+        />
+        <!--
             android:text="88888888888999 222222 444444444444444444444 999999999999999999999999 777777777"
             android:hint=" &#63; "
-            />
+        -->
         <Button
             android:id="@+id/buttonViewOnMap"
             android:layout_width="match_parent"

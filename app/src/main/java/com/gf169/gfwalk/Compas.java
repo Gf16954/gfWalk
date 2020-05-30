@@ -24,8 +24,8 @@ public class Compas implements SensorEventListener {
     private Sensor mMagnetometer;
 
     private Context context;
-    private boolean isDisabled;
-    private boolean isTurnedOn;
+    public boolean isDisabled;
+    public boolean isTurnedOn;
 
     private Display display;
 

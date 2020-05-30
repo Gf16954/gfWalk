@@ -129,11 +129,11 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
                 cursor.getColumnIndex(DB.KEY_TIMEZONE)));
         dateFormat.setTimeZone(timeZone);
         String s=Utils.dateStr(cursor.getLong(cursor.getColumnIndex(DB.KEY_STARTTIME)),dateFormat);
-        ((TextView) v.findViewById(R.id.textViewStartTime2)).setText(s);
+        ((TextView) v.findViewById(R.id.textViewStartTime)).setText(s);
 
         s=cursor.getString(cursor.getColumnIndex(DB.KEY_STARTPLACE));
         if (s!=null && s.contains("NoAddress")) s="";
-        ((TextView) v.findViewById(R.id.textViewStartPlace2)).setText(s);
+        ((TextView) v.findViewById(R.id.textViewStartPlace)).setText(s);
 
         s=Utils.durationStr(cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION)),
                 cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATIONNETTO)));
@@ -195,11 +195,13 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
         s=commentOld=cursor.getString(cursor.getColumnIndex(DB.KEY_COMMENT));
         TextView tv=(TextView)v.findViewById(R.id.textViewComment2);
         tv.setText(s);
+/*
         ImageSpan span = new ImageSpan(activity, R.drawable.hint_write,
                 ImageSpan.ALIGN_BOTTOM);
         SpannableStringBuilder ssb = new SpannableStringBuilder(" ");
         ssb.setSpan(span,0,1,Spannable.SPAN_INCLUSIVE_INCLUSIVE );
         tv.setHint(ssb);
+*/
 /* Запрет клавиатуре автоматически вылезать. Из ~10 перепробованных способов работает только это
         getDialog().getWindow().setSoftInputMode(
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
