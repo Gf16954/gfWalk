@@ -1,28 +1,66 @@
 <resources>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <!--
+                <item name="colorPrimaryDark">@color/colorPrimary</item>
+                <item name="colorAccent">@color/colorPrimary</item>
+        -->
+        <item name="android:backgroundTint">@color/normalBackground</item> <!-- Tint !!! -->
+        <item name="actionBarStyle">@style/MyActionBar</item>
+    </style>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="@android:style/Theme.Holo.Light.DarkActionBar">
-        <!-- Customize your theme here. -->
-        <!-- Меню без разделителей -->
-        <!--item name="android:dividerHorizontal">@drawable/ic_action_map</item>
-        <item name="dividerHorizontal">@drawable/ic_action_map</item-->
-        <!-- Неправильно работает, перенесено в java
-        <item name="android:popupMenuStyle">@style/Theme.AppCompat.Light.DarkActionBar</item>
-    		<item name="android:divider">@null</item>
-        <item name="android:dividerHorizontal">@null</item>
+    <style name="MyActionBar" parent="@style/Widget.AppCompat.Light.ActionBar.Solid">
+        <item name="titleTextStyle">@style/MyTitleTextStyle</item>
+    </style>
+
+    <style name="MyTitleTextStyle" parent="@style/TextAppearance.AppCompat.Title">
+        <item name="android:textSize">20sp</item> <!-- Default for portrait is 20sp and for landscape 14sp-->
+    </style>
+<!--
+    <style name="MapActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
+    </style>
+
+    <style name="GalleryActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
+    </style>
+
+    <style name="SettingsActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
+        <item name="android:actionBarStyle">@style/MyActionBar</item>
+        <item name="android:textSize">22sp</item>
+    </style>
+
+    <style name="EditTextActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
+    </style>
+
+    <style name="HelpActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
+    </style>
+-->
+
+    <style name="DialogFragmentTheme" parent="Theme.AppCompat.Light">
+        <item name="android:textColor">@color/fragment_textColor</item>
+        <item name="android:background">@color/fragment_background</item>
+        <item name="android:textSize">@dimen/walkfilter_textSize1</item>
+        <!--
+        <item name="colorControlActivated">@color/colorPrimaryBlue</item>
+        <item name="colorControlNormal">@color/fragment_background</item>
         -->
     </style>
 
-    <style name="FullscreenTheme" parent="AppTheme">
-        <item name="android:actionBarStyle">@style/FullscreenActionBarStyle</item>
-        <item name="android:windowActionBarOverlay">true</item>
-        <item name="android:windowBackground">@null</item>
-        <item name="metaButtonBarStyle">?android:attr/buttonBarStyle</item>
-        <item name="metaButtonBarButtonStyle">?android:attr/buttonBarButtonStyle</item>
-    </style>
+    <style name="WalkInfoButton" parent="DialogFragmentTheme">
+        <item name="android:height">@dimen/walkinfo_buttonHeight</item>
+        <item name="android:textSize">@dimen/walkinfo_textSize3</item>
+        <item name="android:textColor">@color/walkinfo_color1</item>
+        <item name="android:backgroundTint">@color/buttonBackground</item>
 
-    <style name="FullscreenActionBarStyle" parent="android:Widget.Holo.ActionBar">
-        <item name="android:background">@color/black_overlay</item>
+        <item name="android:drawablePadding">1dp</item>
+        <item name="android:paddingLeft">2dp</item>
+        <item name="android:paddingTop">7dp</item>
+        <item name="android:paddingBottom">7dp</item>
+        <item name="android:gravity">left</item>
     </style>
 
 </resources>

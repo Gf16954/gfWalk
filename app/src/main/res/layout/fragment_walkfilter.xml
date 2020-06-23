@@ -1,94 +1,99 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
+<RelativeLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:theme="@style/DialogFragmentTheme"
     >
-    <RelativeLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
+    <TextView
+        android:id="@+id/textViewTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginLeft="@dimen/walkinfo_paddingHor1"
-        android:layout_marginRight="@dimen/walkinfo_paddingHor1"
         android:layout_marginTop="@dimen/walkinfo_paddingVert1"
         android:layout_marginBottom="@dimen/walkinfo_paddingVert1"
+        android:paddingLeft="@dimen/walkinfo_paddingHor1"
+        android:gravity="center"
+        android:textStyle="bold"
+        android:text="@string/filter_show_walks"
+        />
+    <ScrollView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/textViewTitle"
         >
-
-        <RadioGroup
-            android:id="@+id/radioButtonsBean"
+        <RelativeLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            >
-            <RadioButton
-                android:id="@+id/radioButtonShowNotInBean"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/filter_not_in_bin_only"
-                />
-            <RadioButton
-                android:id="@+id/radioButtonShowInBean"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/filter_in_bin_only"
-                />
-            <RadioButton
-                android:id="@+id/radioButtonShowAll"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/filter_all"
-                />
-        </RadioGroup>
-
-        <TextView
-            android:id="@+id/textViewCommentContains"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/radioButtonsBean"
-            android:paddingTop="@dimen/walkinfo_paddingHor1"
-            android:paddingLeft="@dimen/walkinfo_paddingHor1"
-            android:textSize="@dimen/textSize1"
-            android:text="@string/filter_comment_contains"
-            />
-        <EditText
-            android:id="@+id/textViewCommentContains2"
-            android:layout_width="200dp"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/textViewCommentContains"
-            android:paddingRight="@dimen/walkinfo_paddingHor1"
-            android:textSize="@dimen/textSize1"
-            android:textColor="@color/walkinfo_color2"
-            android:inputType="text"
-            android:text="88888888888999 222222 444444444444444444444 999999999999999999999999 777777777"/>
-
-        <Button
-            android:id="@+id/buttonClearFilter"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/textViewCommentContains2"
-            android:layout_marginTop="20dp"
-            android:text="@string/filter_clear"
-            />
-<!--
-        <Button
-            android:id="@+id/buttonClearFilter"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_toRightOf="@id/buttonApplyFilter"
-            android:layout_alignBottom="@id/buttonApplyFilter"
-            android:layout_marginLeft="20dp"
-            android:text="@string/filter_clear"
-            />
--->
-        <Button
-            android:id="@+id/buttonApplyFilter"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/buttonClearFilter"
-            android:layout_alignParentRight="true"
+            android:layout_marginLeft="@dimen/walkinfo_paddingHor1"
             android:layout_marginRight="@dimen/walkinfo_paddingHor1"
-            android:text="@string/filter_apply"
-            />
+            android:layout_marginBottom="@dimen/walkinfo_paddingVert1"
+            >
 
-    </RelativeLayout>
-</ScrollView>
+            <RadioGroup
+                android:id="@+id/radioButtonsBean"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                >
+                <RadioButton
+                    android:id="@+id/radioButtonShowNotInBean"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_not_in_bin_only"
+                    />
+                <RadioButton
+                    android:id="@+id/radioButtonShowInBean"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_in_bin_only"
+                    />
+                <RadioButton
+                    android:id="@+id/radioButtonShowAll"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/filter_all"
+                    />
+            </RadioGroup>
+
+            <TextView
+                android:id="@+id/textViewCommentContains"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/radioButtonsBean"
+                android:paddingTop="@dimen/walkinfo_paddingHor1"
+                android:textStyle="bold"
+                android:text="@string/filter_comment_contains"
+                />
+            <EditText
+                android:id="@+id/textViewCommentContains2"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/textViewCommentContains"
+                android:paddingRight="@dimen/walkinfo_paddingHor1"
+                android:textColor="@color/fragment_textColor"
+                android:textStyle="normal"
+                android:inputType="text"
+                android:text=""/>
+
+            <Button
+                android:id="@+id/buttonClearFilter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/textViewCommentContains2"
+                android:layout_marginTop="20dp"
+                android:backgroundTint="@color/buttonBackground"
+                android:text="@string/filter_clear"
+                />
+            <Button
+                android:id="@+id/buttonApplyFilter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/buttonClearFilter"
+                android:layout_alignParentRight="true"
+                android:layout_marginRight="@dimen/walkinfo_paddingHor1"
+                android:backgroundTint="@color/buttonBackground"
+                android:text="@string/filter_apply"
+                />
+        </RelativeLayout>
+    </ScrollView>
+</RelativeLayout>
 

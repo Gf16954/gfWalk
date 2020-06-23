@@ -1,6 +1,3 @@
-/**
- * Created by gf on 20.09.2015.
- */
 package com.gf169.gfwalk;
 
 import android.app.Activity;
@@ -11,9 +8,12 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 
-public class EditTextActivity extends Activity {
+public class EditTextActivity extends AppCompatActivity {
     static final String TAG = "gfEditTextActivity";
 
     String textFilePath;
@@ -36,10 +36,6 @@ public class EditTextActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         Utils.logD(TAG, "onCreate");
         super.onCreate(savedInstanceState);
-
-//        AirbrakeNotifier.register(this,
-//                "f17762b5ea71e1af3bcf37ba0cb2a67c",
-//                "", false);
 
         setContentView(R.layout.activity_edittext);
         Bundle extras = getIntent().getExtras();
@@ -60,7 +56,9 @@ public class EditTextActivity extends Activity {
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(
                     new FileInputStream(new File(textFilePath))));
-            while ((s=reader.readLine()) != null) textIni+=s+"\n";
+            StringBuilder s2 = new StringBuilder();
+            while ((s=reader.readLine()) != null) s2.append(s).append("\n");
+            textIni = s2.toString();
             reader.close();
         }
         catch (Exception e) {
@@ -75,7 +73,7 @@ public class EditTextActivity extends Activity {
             return;
         }
         ((TextView) findViewById(R.id.textViewEditText)).setText(textIni);
-        EditText editText = (EditText)findViewById(R.id.textViewEditText);
+        EditText editText = findViewById(R.id.textViewEditText);
         editText.addTextChangedListener(new TextWatcher() {
             public void afterTextChanged(Editable s) {
                 if (s.length()!=textIni.length() ||
@@ -96,6 +94,9 @@ public class EditTextActivity extends Activity {
             public void onTextChanged(CharSequence s, int start, int before, int count) {
             }
         });
+        editText.requestFocus();  // !!!
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+
         findViewById(R.id.buttonEditTextOk).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -107,6 +108,7 @@ public class EditTextActivity extends Activity {
                 finish();
             }
         });
+
         findViewById(R.id.buttonEditTextCancel).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -114,12 +116,12 @@ public class EditTextActivity extends Activity {
                 finish();
             }
         });
-        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
     }
+
     boolean saveText() {
         Utils.logD(TAG, "saveText");
 
-        s=((TextView) findViewById(R.id.textViewEditText)).getText().toString();
+        s=((TextView) findViewById(R.id.textViewEditText)).getText().toString().trim() + "   ";
         try {
             OutputStreamWriter writer=new OutputStreamWriter(
                     new FileOutputStream(new File(textFilePath)));
@@ -135,6 +137,7 @@ public class EditTextActivity extends Activity {
             return false;
         }
     }
+
     void enableButtons(boolean state) {
         findViewById(R.id.buttonEditTextOk).setVisibility(state ? View.VISIBLE : View.INVISIBLE);
         findViewById(R.id.buttonEditTextCancel).setVisibility(state ? View.VISIBLE : View.INVISIBLE);

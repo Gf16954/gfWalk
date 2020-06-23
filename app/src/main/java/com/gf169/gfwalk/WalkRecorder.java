@@ -1,13 +1,16 @@
 package com.gf169.gfwalk;
 
+import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
@@ -18,6 +21,7 @@ import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -36,29 +40,30 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Random;
+import java.util.Set;
 import java.util.Vector;
 import java.util.regex.Pattern;
 
 public class WalkRecorder extends Service implements
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
-    static final String TAG="gfWalkRecorder";
+    static final String TAG = "gfWalkRecorder";
 
     static WalkRecorder self;
-    static long curSessionStartTime; // По здешним часам
 
     volatile Location lastGoodLocation = null;  // Последняя полученная от provider'a не ошибочная точка
     Location prevGoodLocation;
     volatile int curLocationIsOK; // Последняя полученная точка свежая и хорошая
 
     int locationRequestInterval;
-    final int locationRequestInterval2=1;  // Начальный
-    final int locationRequestInterval3=3;  // После плохой точки или долгого отсутствия
+    final int locationRequestInterval2 = 1;  // Начальный
+    final int locationRequestInterval3 = 3;  // После плохой точки или долгого отсутствия
 
-    boolean mockLocation=false; // Ниже переустановлю: если под эмулятором - true
+    boolean mockLocation = false; // Ниже переустановлю: если под эмулятором - true
 
     int callNumber = -1;
     Thread timerThread;
@@ -70,11 +75,11 @@ public class WalkRecorder extends Service implements
     Clock clock;
     NotificationManager notificationManager;
     NotificationCompat.Builder notifyBuilder;
-    int notifyID=1;
-    int locationRequestPriority=LocationRequest.PRIORITY_HIGH_ACCURACY;
-    final float ACCURACY_FACTOR=0.5F;  // TODO: Уточнить !
+    int notifyID = 1;
+    int locationRequestPriority = LocationRequest.PRIORITY_HIGH_ACCURACY;
+    final float ACCURACY_FACTOR = 0.5F;  // TODO: Уточнить !
     final int waitingThreadTimeout = 10;
-    int activityRecognitionInterval=5; // сек !!!
+    int activityRecognitionInterval = 5; // сек !!!
     ARState arStateLast;
     ARState arStateMean = new ARState((ActivityRecognitionResult) null);
     PendingIntent locationPendigIntent, arPendingIntent;
@@ -83,35 +88,51 @@ public class WalkRecorder extends Service implements
     SharedPreferences walkSettings;
 
     // Эти переменные update'ятся в разных thread'ах, поэтому volatile
-    volatile boolean locationServiceIsReady=false;
+    volatile boolean locationServiceIsReady = false;
     volatile String totalStr;
-    volatile Location lastPointLocation=null;  // Последняя точка маршрута. Служит и флагом начала/продолжения прогулки
-    volatile long lastPointTime=0;
+    volatile Location lastPointLocation = null;  // Последняя точка маршрута. Служит и флагом начала/продолжения прогулки
+    volatile long lastPointTime = 0;
     volatile int walkId;
     volatile long startTime;  // Время начала прогулки
     volatile Location endLocation; // Последней точки последнего продолжения
     volatile long walkDuration; // в миллисекундах
-    volatile long deltaDuration=0; //  Начальная duration-durationNetto (duration с учетом приостановок)
+    volatile long deltaDuration = 0; //  Начальная duration-durationNetto (duration с учетом приостановок)
     volatile float walkLength; // в метрах
     volatile float deltaLength;
     volatile int lastPointNumber; // в прогулке
     volatile int lastAFNumber; // в прогулке
-    volatile long lastPointId=0;
-    int iOnLocationChanged=-1;
-    volatile Vector<Long> lastAFIds=new Vector<>(Walk.AFKIND_MAX+1); // По видам артефаков
+    volatile long lastPointId = 0;
+    volatile Vector<Long> lastAFIds = new Vector<>(Walk.AFKIND_MAX + 1); // По видам артефаков
+    volatile boolean screenIsOn = true;
 
+    int iOnLocationChanged = -1;
+
+    int nLocationNotOk;
+    int nLocationNotOkMax = 5;  // Число полученных плохих точек, после которых не проверяем следующую
+    float nStale = 2.5f; // Число интервалов после последней точки, после чего она считается протухшей
+
+    BroadcastReceiver broadcastReceiver;
+    PowerManager.WakeLock wakeLock;
+
+    static boolean arIsPresent = false; // Есть датчикИ
+/*
+To conserve battery, activity reporting may stop when the device is 'STILL' for an extended period of time.
+It will resume once the device moves again. This only happens on devices that support the Sensor.TYPE_SIGNIFICANT_MOTION hardware.
+Beginning in API 21, activities may be received less frequently than the detectionIntervalMillis parameter
+if the device is in power save mode and the screen is off.
+ */
     static class ARState { //ActivityRecognitionState
-        static int[] types={DetectedActivity.STILL /*3*/, DetectedActivity.WALKING /*7*/, // По возрастанию скорости
+        static int[] types = {DetectedActivity.STILL /*3*/, DetectedActivity.WALKING /*7*/, // По возрастанию скорости
                 DetectedActivity.RUNNING /*8*/, DetectedActivity.ON_BICYCLE /*1*/,
                 DetectedActivity.IN_VEHICLE /*0*/, DetectedActivity.UNKNOWN} /*4*/;
-        static String[] names={ "still", "walking", "running", "on bicycle", "in vehicle", "unknown"};
-        // tilting 5 и on foot 2 выкинуты!
-        static float[] maxSpeeds={1, 8, 20, 25, 250, 1000000}; // км/час
+        static String[] names = {"still", "walking", "running", "on bicycle", "in vehicle", "unknown"};
+        // tilting 5 и on foot 2 выкинуты
+        static float[] maxSpeeds = {0.1f, 8, 20, 25, 250, 250}; // км/час
 
         int type; //=DetectedActivity.UNKNOWN;
         String name; //="unknown";
         float maxPossibleSpeed; //=1000000;
-        int[] confs={0,0,0,0,0,0};
+        int[] confs = {0, 0, 0, 0, 0, 0};
 
         float maxSpeedFromMap; // На интервале от предыдущей точки
         int typePrev;
@@ -126,8 +147,8 @@ public class WalkRecorder extends Service implements
         }
 
         static float getMaxSpeed(int type) {
-            for (int i=0; i<types.length; i++) {
-                if (type==types[i]) {
+            for (int i = 0; i < types.length; i++) {
+                if (type == types[i]) {
                     return maxSpeeds[i];
                 }
             }
@@ -135,8 +156,8 @@ public class WalkRecorder extends Service implements
         }
 
         static String getName(int type) {
-            for (int i=0; i<types.length; i++) {
-                if (type==types[i]) {
+            for (int i = 0; i < types.length; i++) {
+                if (type == types[i]) {
                     return names[i];
                 }
             }
@@ -144,8 +165,8 @@ public class WalkRecorder extends Service implements
         }
 
         static int getType(float speed) {
-            for (int i=0; i<types.length; i++) {
-                if (speed<maxSpeeds[i]) {
+            for (int i = 0; i < types.length; i++) {
+                if (speed < maxSpeeds[i]) {
                     return types[i];
                 }
             }
@@ -153,42 +174,43 @@ public class WalkRecorder extends Service implements
         }
 
         void reset(int typePrev, Location locationPrev) {
-            setProps(types.length-1);  // unknown
-            confs = new int[]{0,0,0,0,0,0};
-            maxSpeedFromMap=0;   // На интервале от предыдущей точки
+            setProps(types.length - 1);  // unknown
+            confs = new int[]{0, 0, 0, 0, 0, 0};
+            maxSpeedFromMap = 0;   // На интервале от предыдущей точки
             this.typePrev = typePrev;
             this.locationPrev = locationPrev != null ? new Location(locationPrev) : null;
-            isStill = null;
+            isStill = arIsPresent ? true : null;
         }
 
         ARState(ActivityRecognitionResult result) {
             StringBuilder s = new StringBuilder("ARState new: ");
 
-            if (result==null) {
+            if (result == null) {
                 reset(DetectedActivity.UNKNOWN, null);
-                Utils.logD(TAG,  s + "-> " + name);
+                Utils.logD(TAG, s + "-> " + name);
                 return;
             }
 
-            int j=-1;
+            int j = -1;
             int conf = 0;
             for (DetectedActivity activity : result.getProbableActivities()) {
                 int activityType = activity.getType();
                 s.append(activityType).append("-").append(activity.getConfidence()).append("% ");
 
-                if (activityType == DetectedActivity.TILTING || activityType == DetectedActivity.ON_FOOT)
+                if (activityType == DetectedActivity.TILTING || activityType == DetectedActivity.ON_FOOT
+                    || activityType == DetectedActivity.UNKNOWN)
                     continue;
                 for (int i = 0; i < types.length; i++) {
                     if (types[i] == activity.getType()) {
                         confs[i] = activity.getConfidence();
                         if (confs[i] > conf) {
-                            j=i;
+                            j = i;
                             conf = confs[i];
                         }
                     }
                 }
             }
-            if (j>=0) {
+            if (j >= 0) {
                 setProps(j);
             } else {
                 reset(DetectedActivity.UNKNOWN, null);
@@ -210,100 +232,75 @@ public class WalkRecorder extends Service implements
         }
 
         void add(ARState arState) {
-            StringBuilder s = new StringBuilder("ARState add: ");
-            int j=-1;
-            int conf=0;
-            for (int i=0; i<types.length; i++) {
+            for (int i = 0; i < types.length; i++) {
+                if (arState.confs[i] < 45) continue; // !!! Пропускаем 40, 10, 10, 10...
                 confs[i] += arState.confs[i];
+            }
+            StringBuilder s = new StringBuilder("ARState add: ");
+            int j = -1;
+            int conf = 0;
+            for (int i = 0; i < types.length; i++) {
                 s.append(types[i]).append("-").append(confs[i]).append("% ");
-                if (confs[i]>conf) {
-                    j=i;
-                    conf=confs[i];
+                if (confs[i] > conf) {
+                    j = i;
+                    conf = confs[i];
                 }
             }
-            if (j>=0) {
+            if (j >= 0) {
                 setProps(j);
             }
+
             if (isStill == null) {
                 isStill = name.equals("still");
             } else {
                 isStill &= name.equals("still");
             }
-            Utils.logD(TAG, s + "-> " + name);
+
+            Utils.logD(TAG, s + "-> " + name + "   isStill=" +isStill);
         }
 
         void infereType(Location locationLast) {
-            String s="ARState infereType: "+type;
-            if (type==DetectedActivity.STILL || type==DetectedActivity.UNKNOWN) {  // 3,4
+            String s = "ARState infereType: " + type;
+            if (type == DetectedActivity.UNKNOWN || type == DetectedActivity.STILL) {
                 type = typePrev; // Предыдущей точки
                 s += " -> " + type;
             }
             // Если на самом деле двигались быстрее, чем возможно при этом типе, определяем тип по фактической скорости
-            float speed = Math.max(locationLast.getSpeed(),
+            float speed = 0;
+/*
+            speed = Math.max(locationLast.getSpeed(),
                     locationPrev == null ? 0 : locationPrev.getSpeed());
             speed = Math.max(speed, maxSpeedFromMap); // m/s
+*/
             if (locationPrev != null) {
-                float speed2 =
+                float speed2 =  // Средня скорость
                         Utils.getDistance(Utils.loc2LatLng(locationLast), Utils.loc2LatLng(locationPrev)) /
-                                ((locationLast.getTime() - locationPrev.getTime())/1000f);
-                if (!(speed2!=speed2)) speed = Math.max(speed,speed2); // Не NaN
+                                ((locationLast.getTime() - locationPrev.getTime()) / 1000f);
+                if (!(speed2 != speed2)) speed = Math.max(speed, speed2); // Не NaN
             }
             speed = speed * 3.6f; // km/h
 
-            if (type==DetectedActivity.STILL || type == DetectedActivity.UNKNOWN ||
+            if (type == DetectedActivity.STILL || type == DetectedActivity.UNKNOWN ||
                     speed > getMaxSpeed(type)) {
                 type = getType(speed);
-                s += " -> " + speed +"km/h -> " + type;
+                s += " -> " + speed + "km/h -> " + type;
             }
-            Log.d(TAG, s);
+            Utils.logD(TAG, s);
         }
 
         static void setAbsolutelyMaxSpeed(int speed) {
-            maxSpeeds[maxSpeeds.length-2]=speed;
+            maxSpeeds[maxSpeeds.length - 2] = speed;
+            maxSpeeds[maxSpeeds.length - 1] = speed;
         }
     }
-    
+
     @Override
     public void onCreate() {
         Utils.logD(TAG, "onCreate");
-
 /* Перенесено в MapActivity
         Utils.setDefaultUncaughtExceptionHandler(  // Чтобы при отвале все культурно убивало
                 () -> stop(5));
 */
-        startForeground();  // Прямо сразу!!!
-
-        walkSettings=
-                SettingsActivity.getCurrentWalkSettings(WalkRecorder.this, -1);  // Глобальные
-        geocoder=new Geocoder(this, Locale.getDefault());
-
-        mockLocation = Utils.isEmulator();
-        if (mockLocation) {
-            mockerThread=startMocking(this::onLocationChanged, "gfMockerThread", 10000,
-                    Utils.str2Loc("55.75222 37.61556")); // Москва, Кремль
-        } else {
-            googleApiClient=new GoogleApiClient.Builder(this)
-                    .addApi(LocationServices.API)
-                    .addApi(ActivityRecognition.API)
-                    .addConnectionCallbacks(this)
-                    .addOnConnectionFailedListener(this)
-                    .build();
-            googleApiClient.connect();
-
-            waitingThread = new Thread(()-> {  // Ждем GPS
-                boolean interrupted = false;
-                while (!interrupted && !locationServiceIsReady) {
-                    interrupted = Utils.sleep(waitingThreadTimeout * 1000, true);
-                    if (!locationServiceIsReady) {
-                        Utils.toast(this,
-                                getResources().getString(R.string.waiting_for_GPS), Toast.LENGTH_LONG);
-                    }
-                }
-            }, "gfWaitingForGPS");
-            waitingThread.start();
-        }
-
-        switchLogcatRecorder(true, walkSettings, this);
     }
 
     void startForeground() {
@@ -343,8 +340,68 @@ public class WalkRecorder extends Service implements
                                 PendingIntent.FLAG_UPDATE_CURRENT))
                 .build());
 
-        new Thread(() -> {  // Update'ит notification
-            Utils.logD(TAG, "Timer thread is starting");
+        startTimerThread();
+
+        broadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+                    Utils.logD(TAG, "Screen is turned off");
+                    screenIsOn = false;
+                    timerThread.interrupt();  // Экономим электроэнергию
+                } else if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
+                    Utils.logD(TAG, "Screen is turned on");
+                    screenIsOn = true;
+                    if (locationServiceIsReady) { // Добавляем точку, чтобы сразу нарисовал все ненарисованное
+                        addPoint(null, "Screen is turned on",
+                                0, null, null, false);
+                    }
+                    startTimerThread();
+                }
+            }
+        };
+        IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        registerReceiver(broadcastReceiver, filter);
+
+        walkSettings =
+                SettingsActivity.getCurrentWalkSettings(WalkRecorder.this, -1);  // Глобальные
+        geocoder = new Geocoder(this, Locale.getDefault());
+
+        mockLocation = Utils.isEmulator();
+        if (mockLocation) {
+            mockerThread = startMocking(this::onLocationChanged, "gfMockerThread", 10000,
+                    Utils.str2Loc("55.75222 37.61556")); // Москва, Кремль
+        } else {
+            googleApiClient = new GoogleApiClient.Builder(this)
+                    .addApi(LocationServices.API)
+                    .addApi(ActivityRecognition.API)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .build();
+            googleApiClient.connect();
+
+            waitingThread = new Thread(() -> {  // Ждем GPS
+                boolean interrupted = false;
+                while (!interrupted && !locationServiceIsReady) {
+                    interrupted = Utils.sleep(waitingThreadTimeout * 1000, true);
+                    if (!locationServiceIsReady) {
+                        Utils.toast(this,
+                                getResources().getString(R.string.waiting_for_GPS), Toast.LENGTH_LONG);
+                    }
+                }
+            }, "gfWaitingForGPS");
+            waitingThread.start();
+        }
+
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG + ":wakeLock");
+        wakeLock.acquire();
+    }
+
+    void startTimerThread() {
+        new Thread(() ->  {
+            Utils.logD(TAG, "Timer thread is started");
             timerThread = Thread.currentThread();
 
             // Update'им notification (идущие ноги)
@@ -353,10 +410,12 @@ public class WalkRecorder extends Service implements
 
             boolean interrupted = false;
             while (!interrupted) {
-                if (lastGoodLocation==null ) continue;
+                // Utils.logD(TAG, "Timer thread is working");
+
+                if (lastGoodLocation == null) continue;
                 if (lastGoodLocation.getTime() == prevLocation.getTime()) {
                     if (System.currentTimeMillis() - prevLocation.getTime() > // Долго не было onLocationChange - в метро
-                            locationRequestInterval * 1000 * 2) {
+                            locationRequestInterval * 1000 * nStale) {
                         if (curLocationIsOK >= 0) {
                             curLocationIsOK = -1;  // Пропал GPS и остальное - ничего не получаем
                         }
@@ -365,51 +424,49 @@ public class WalkRecorder extends Service implements
                     prevLocation.set(lastGoodLocation);
                 }
                 iNotifyIcon = ++iNotifyIcon % 2;
-                if (curLocationIsOK >= 0) {
-                    notifyBuilder
-                            .setSmallIcon(iNotifyIcon == 0 ?
-                                    R.drawable.ic_recording_1 :
-                                    R.drawable.ic_recording_2)
-                            .setContentText(totalStr);
-                } else {
-                    notifyBuilder
-                            .setSmallIcon(iNotifyIcon == 0 ?
-                                    R.drawable.ic_recording_1 :
-                                    R.drawable.ic_recording_3)
-                            .setContentText(getResources().
-                                    getString(R.string.location_not_defined));  // На Galaxy не пишет по-русски !
-                }
+                notifyBuilder
+                        .setSmallIcon(iNotifyIcon == 0 ?
+                                R.drawable.ic_recording_1 :
+                                curLocationIsOK >= 0 || !BuildConfig.BUILD_TYPE.equals("debug") ?
+                                        R.drawable.ic_recording_2 : R.drawable.ic_recording_3)
+                        .setContentText(totalStr);
                 notificationManager.notify(notifyID, notifyBuilder.build());
 
                 interrupted = Utils.sleep(1000, true);
             }
             Utils.logD(TAG, "Timer thread is stopped");
-        }, "gfTimerThread").start();
+        },"gfTimerThread").start();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {  // Main thread
         callNumber++;
-        Utils.logD(TAG, "onStartCommand " + callNumber);
+        Utils.logD(TAG, "onStartCommand call "  + callNumber);
 
-        if (intent == null) {
+        if (intent == null) { // ?
+            Utils.logD(TAG, "onStartCommand: intent == null");
             stop(1);
             return Service.START_STICKY;
         }
 
         // Вызов из MapActivity
         Bundle extras = intent.getExtras();
-            // Начало записи
+            // Начни запись прогулки
         int walkId2 = extras != null ? extras.getInt("walkId") : 0;
         if (walkId2 > 0) {
-            Utils.logD(TAG, "onStartCommand walkId=" + walkId2);
+            Utils.logD(TAG, "onStartCommand: walkId=" + walkId2);
             getWalkInf(walkId2);
-            self = this;  // !!!
+
+            self = this;  // Работает !!!
+            startForeground();  // Реальный запуск здесь и только здесь - единственный законный способ!
+
             return Service.START_STICKY;
         }
 
         if (self == null) {  // Ни на что не реагируем
-            stop(8);
+            StringBuilder s = new StringBuilder("\n");
+            for (CharSequence c: intent.getExtras().keySet()) s.append(c).append(" ");
+            Utils.logD(TAG, "onStartCommand: skipping premature call"  + s);
             return Service.START_STICKY;
         }
 
@@ -417,22 +474,24 @@ public class WalkRecorder extends Service implements
         float speedFromMap = extras != null ? extras.getFloat("speedFromMap", -1) : -1;
         if (speedFromMap >= 0) {
             arStateMean.maxSpeedFromMap = Math.max(arStateMean.maxSpeedFromMap, speedFromMap);
-            Utils.logD(TAG, "onStartCommand maxSpeedFromMap="
+            Utils.logD(TAG, "onStartCommand: maxSpeedFromMap="
                     + speedFromMap + " " + arStateMean.maxSpeedFromMap);
             return Service.START_STICKY;
         }
 
         // Вызов отсюда же - ActivityRecognition
         if (ActivityRecognitionResult.hasResult(intent)) {
+            arIsPresent = true;
+
             arStateLast = new ARState(ActivityRecognitionResult.extractResult(intent));
             arStateMean.add(arStateLast);
-            Utils.logD(TAG, "onStartCommand ARState type=" + arStateLast.type + " " + arStateMean.type);
+            Utils.logD(TAG, "onStartCommand: ARState type=" + arStateLast.type + " " + arStateMean.type);
             return Service.START_STICKY;
         }
 
-        StringBuilder s = new StringBuilder();
+        StringBuilder s = new StringBuilder("\n");
         for (CharSequence c: intent.getExtras().keySet()) s.append(c).append(" ");
-        Utils.logD(TAG, "onStartCommand unknown call: " + s);
+        Utils.logD(TAG, "onStartCommand: unknown call"  + s);
         return Service.START_STICKY;
     }
 
@@ -472,11 +531,17 @@ public class WalkRecorder extends Service implements
         if (notificationManager!=null) {
             notificationManager.cancel(notifyID);
         }
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+        try {
+            unregisterReceiver(broadcastReceiver);
+        } catch (Exception e) {} // Еще не зарегистрирован
 
         lastGoodLocation=null;
         stopSelf();
 
-        switchLogcatRecorder(false, walkSettings, this);
+//        switchLogcatRecorder(false, walkSettings, this);
     }
 
     @Override
@@ -534,6 +599,15 @@ public class WalkRecorder extends Service implements
         cursor.close();
     }
 
+    public void requestActivityRecognition(int interval) {
+        arPendingIntent=PendingIntent.getService(
+                this, 3, new Intent(this, WalkRecorder.class),
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates(
+                googleApiClient, interval * 1000, arPendingIntent);  // Нету с listener'ом, только pendingIntent:(
+    }
+
+    @SuppressLint("MissingPermission")
     public void requestLocationUpdates(int interval, int minInterval) {
         Utils.logD(TAG, "requestLocationUpdates " + interval + " " + minInterval);
         LocationRequest locationRequest=LocationRequest.create();
@@ -546,14 +620,6 @@ public class WalkRecorder extends Service implements
         LocationServices.FusedLocationApi.requestLocationUpdates(
 //                googleApiClient, locationRequest, locationPendigIntent); // -> onStartCommand
                 googleApiClient, locationRequest, this);
-    }
-
-    public void requestActivityRecognition(int interval) {
-        arPendingIntent=PendingIntent.getService(
-                this, 3, new Intent(this, WalkRecorder.class),
-                PendingIntent.FLAG_UPDATE_CURRENT);
-        ActivityRecognition.ActivityRecognitionApi.requestActivityUpdates(
-                googleApiClient, interval * 1000, arPendingIntent);  // Нету с listener'ом, только pendingIntent:(
     }
 
     @Override
@@ -578,83 +644,69 @@ public class WalkRecorder extends Service implements
         if (self == null) return;
 
         iOnLocationChanged++;
-        Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": "+
-                Utils.loc2Str(location)+" "+(arStateLast==null ? "" : arStateLast.name));
+        Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": " +
+                new SimpleDateFormat("HH:mm:ss.sss").format(location.getTime()) + " " +
+                Utils.loc2Str(location)+" "+(arStateLast==null ? "" : arStateLast.name) + " " + arStateMean.isStill);
 
         if (lastGoodLocation==null) {// Самая первая
-            lastGoodLocation=new Location("");
-            lastGoodLocation.set(location);
+            lastGoodLocation=new Location(location);
+            prevGoodLocation=new Location(location);
             return;
         }
-        // Location хороший?
-        int iOK=0;
+        // Location хорошая?
+        int iOk=0;
         if (locationServiceIsReady  // Пока Location service не заработал, на AR не обращаем внимания
                 && arStateMean.isStill == Boolean.TRUE) {  // Стоял весь интервал
             long t=location.getTime();
             location.set(lastGoodLocation); // Копируем предыдущую
             location.setTime(t);
-            iOK=4;
-            curLocationIsOK=1;
+            iOk=4;
+
         } else {
-            if (locationServiceIsReady ||
-                    !Utils.loc2LatLng(location).equals(Utils.loc2LatLng(lastGoodLocation))) {  // Первые 2 точки должны быть разные
-                iOK = 1;
-                if (location.getAccuracy() <  // Точность определения положения приемлема
-                        Integer.parseInt(walkSettings.getString("recording_min_location_accuracy", "50"))) {
-                    iOK = 2;
-                    if (arStateLast==null ||  // Не выброс - ошибка GPS-датчика
-                            Utils.getDistance(Utils.loc2LatLng(location),Utils.loc2LatLng(lastGoodLocation)) <=
-                            (location.getTime() - lastGoodLocation.getTime()) *
-                                    Math.max(arStateLast.maxPossibleSpeed,  arStateMean.maxPossibleSpeed) / 3600) {
-                        iOK = 3;
-                        curLocationIsOK = 1;
-                    } else {
-                        Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": error=" +
-                            Utils.getDistance(Utils.loc2LatLng(location),Utils.loc2LatLng(lastGoodLocation)) + " " +
-                            (location.getTime() - lastGoodLocation.getTime()) / 1000 + " " +
-                            + arStateLast.maxPossibleSpeed / 3.6 + " " + arStateMean.maxPossibleSpeed / 3.6);
-                    }
-                } else {
-                    Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": error=" +
-                        location.getAccuracy() +
-                        walkSettings.getString("recording_min_location_accuracy", "50"));
+
+            iOk = testLocation(location);
+
+            if (iOk<3) {
+                nLocationNotOk++;
+                if (nLocationNotOk > nLocationNotOkMax) {
+                    iOk = 7;
                 }
             }
-            if (iOK<3) {
-                curLocationIsOK=0;  // Плохой :(
-            }
         }
-        Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": OK="+iOK);
+        curLocationIsOK = iOk <3? 0 : 1;
+        Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": OK=" + iOk + " " + nLocationNotOk);
 
-        if (curLocationIsOK>0) { // Все ОК, полноценная точка
-            prevGoodLocation=new Location(lastGoodLocation);
+        if (curLocationIsOK > 0) { // Все ОК, полноценная точка
+            prevGoodLocation.set(lastGoodLocation);
             lastGoodLocation.set(location);
+            nLocationNotOk = 0;
 
             if (locationServiceIsReady) { // Добавляем точку
-                addPoint(lastGoodLocation, "onLocationChanged",
+                addPoint(null, "onLocationChanged",  // null - добавится lastGoodLocation
                             0, null, null, false);
 
             } else { // Начало записи прогулки
                 clock = new Clock(location); // Запускаем часы
-                curSessionStartTime=clock.getTime();
 
                 if (!mockLocation) {
                     requestActivityRecognition(activityRecognitionInterval);
                 }
 
-                addPoint(lastGoodLocation, "enterResumeMode",  // Первая точка
+                addPoint(null, "enterResumeMode",  // Первая точка
                         0, null, null, false);
 
                 locationServiceIsReady = true;
             }
+
             if (!mockLocation) {
                 int i = Integer.parseInt(  // Восстанавливаем нормальный интервал
                         walkSettings.getString("recording_max_seconds_between_points", "60"));
                 if (i != locationRequestInterval) {
                     locationRequestInterval = i;
-                    requestLocationUpdates(locationRequestInterval,locationRequestInterval);
+                    requestLocationUpdates(locationRequestInterval, locationRequestInterval);
                 }
             }
+
         } else if (!mockLocation) {  // Хорошей точки не получили!
             if (locationRequestInterval != locationRequestInterval3) {  // !!!
                 locationRequestInterval = locationRequestInterval3;
@@ -668,6 +720,46 @@ public class WalkRecorder extends Service implements
         }
     }
 
+    int testLocation(Location location) {
+        int r = 0;
+        if (locationServiceIsReady ||
+            !Utils.loc2LatLng(location).equals(Utils.loc2LatLng(lastGoodLocation))) {  // Первые 2 точки должны быть разные
+            r = 1;
+
+            float x = location.getAccuracy();
+            float y = Integer.parseInt(walkSettings.getString("recording_min_location_accuracy", "50"));
+            String s = " Test 2 (accuracy) " + x + " < " + y;
+            if (x < y) { // Точность определения положения приемлема
+                r = 2;
+            };
+            Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged +
+                s + " " + (r == 2 ? "Ok" : "NOT Ok"));
+            if (r == 2) {
+                if (arStateLast == null) {
+                    s = "Test 3 arStateLast == null";
+                    r = 5;
+                } else if (System.currentTimeMillis()-location.getTime()> // Не протухла ли location ?
+                    Integer.parseInt(walkSettings.getString("recording_max_seconds_between_points", "60"))
+                        * 1000 * nStale) {
+                    s = "Test 3 - too much time after previous point";
+                    r = 6;
+                } else {
+                    x = Utils.getDistance(Utils.loc2LatLng(location), Utils.loc2LatLng(lastGoodLocation));
+                    y = arStateLast.maxPossibleSpeed / 3.6f;  // m/s
+                    float z = arStateMean.maxPossibleSpeed / 3.6f;
+                    long i = (location.getTime() - lastGoodLocation.getTime()) / 1000;
+                    s = "Test 3 (erronious jump) " + x + " <= max(" + y + "," + z + ") * " + i;
+                    if (x <= Math.max(y, z) * i) {
+                        r = 3;
+                    }
+                }
+                Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged +
+                    " " + s + " " + "  r=" + r + (r >= 3 ? " Ok" : " NOT Ok"));
+            }
+        }
+        return r;
+    }
+
     void addPoint(
             Location location, String debugInfo,
             int afKind, String afUri, String afFilePath, boolean isLastPoint) {
@@ -679,49 +771,53 @@ public class WalkRecorder extends Service implements
             return;
         }
 
-        final Location location2 = Utils.nvl(location, lastGoodLocation);
-        arStateMean.infereType(location2);
-        ARState arState2 = new ARState(arStateMean);
-        arStateMean.reset(arStateMean.type, location2);  // Инициализируем на следующий интервал
+        if (location != null &&  // Вызов из MapActivity, еще не проверена - проверяем
+                testLocation(location) >= 3) {
+            prevGoodLocation.set(lastGoodLocation);
+            lastGoodLocation.set(location);
+        }
 
+        boolean pointIsAllreadyPresent =  // Новой точки не будет
+                Utils.getDistance(Utils.loc2LatLng(lastGoodLocation), Utils.loc2LatLng(prevGoodLocation)) <=
+                    Math.max(Integer.parseInt(walkSettings.getString("recording_min_meters_between_points", "10")),
+                        (lastGoodLocation.getAccuracy() + prevGoodLocation.getAccuracy()) * ACCURACY_FACTOR);
+/*
+In statistical terms, it is assumed that location errors are random with a normal distribution,
+so the 68% confidence circle represents one standard deviation.
+*/
+        arStateMean.infereType(lastGoodLocation);
+        final ARState arState2 = new ARState(arStateMean);
+        // Инициализируем на следующий интервал
+        if (pointIsAllreadyPresent) {
+            arStateMean.reset(arStateMean.typePrev, lastGoodLocation);
+        } else {
+            arStateMean.reset(arStateMean.type, lastGoodLocation);
+        }
+        final Location location2 = lastGoodLocation;
         new Thread(() -> {  // Безымянная
-            totalStr = addPoint2(location2, debugInfo, afKind, afUri, afFilePath, isLastPoint, arState2);
+            totalStr = addPoint2(location2, debugInfo, afKind, afUri, afFilePath, isLastPoint, arState2,
+                    pointIsAllreadyPresent);
         }).start();
     }
 
-    synchronized String addPoint2(  // Возвращает totalStr прогулки; выполняется в НЕглавной Thread !!!
+    private synchronized String addPoint2(  // Возвращает totalStr прогулки; выполняется в НЕглавной Thread !!!
             Location location, String debugInfo,
-            int afKind, String afUri, String afFilePath, boolean isLastPoint, ARState arState) {
+            int afKind, String afUri, String afFilePath, boolean isLastPoint, ARState arState,
+                                            boolean pointIsAllreadyPresent) {
         Utils.logD(TAG, "addPoint2 start: "+debugInfo+" "+Utils.loc2Str(location));
 
         long t=clock.getTime();
 
-        // Не протухла ли location ?
-        if (System.currentTimeMillis()-location.getTime()>
-                Integer.parseInt(walkSettings.getString("recording_max_seconds_between_points", "60"))*
-                1000*2
-                && !isLastPoint) {  // Последнюю всегда считаем хорошей
-            return getResources().getString(R.string.location_not_defined); // Положения не знаем - точку не добавляем !!!
-        }
         ContentValues values=new ContentValues();
         String pointAddress="";
 
-        boolean pointIsAllreadyPresent=
-                lastPointLocation!=null && // Первую всегда добавляем
-                Utils.getDistance(Utils.loc2LatLng(location),Utils.loc2LatLng(lastPointLocation))<
-                Math.max(
-                    Integer.parseInt(walkSettings.getString("recording_min_meters_between_points", "10")),
-                    (location.getAccuracy()+lastPointLocation.getAccuracy())*ACCURACY_FACTOR);
-
-        if (pointIsAllreadyPresent) {
-            values.put(DB.KEY_POINTTIMEEND, t);
-            DB.db.update(DB.TABLE_POINTS, values, DB.KEY_POINTID + "=" + lastPointId, null);
-            Utils.logD(TAG, "Last point is updated - location didn't change. "+debugInfo);
-        } else {
+        boolean toAdd = lastPointLocation==null || !pointIsAllreadyPresent;
+        if (toAdd) {
             lastPointNumber++;
             values.put(DB.KEY_POINTWALKID, walkId);
             values.put(DB.KEY_POINTFLAGRESUME, lastPointLocation==null);
             values.put(DB.KEY_POINTTIME, t);
+            values.put(DB.KEY_POINTTIMEEND, t);
             values.put(DB.KEY_POINTLOCATION, Utils.loc2Str(location));
             values.put(DB.KEY_POINTDEBUGINFO, "#"+lastPointNumber+" "+debugInfo);
             pointAddress=Utils.getAddress(geocoder, Utils.loc2LatLng(location));
@@ -743,6 +839,11 @@ public class WalkRecorder extends Service implements
 
             lastPointId=DB.db.insert(DB.TABLE_POINTS, null, values);
             Utils.logD(TAG, "A point is added: #"+lastPointNumber+" "+debugInfo);
+
+        } else {
+            values.put(DB.KEY_POINTTIMEEND, t);
+            DB.db.update(DB.TABLE_POINTS, values, DB.KEY_POINTID + "=" + lastPointId, null);
+            Utils.logD(TAG, "Last point is updated - location didn't change. "+debugInfo);
         }
 
         // Сохраняем артефакты
@@ -849,7 +950,7 @@ public class WalkRecorder extends Service implements
                     int pointNumber=lastPointNumber;
                     long timeAdded=cursor.getLong(cursor.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED))
                             *1000;
-                    if (!pointIsAllreadyPresent &&
+                    if (toAdd &&
                             timeAdded-lastPointTime< // Если ближе к предыдущей,
                             t-timeAdded) { // прицепляем к ней
                         pointId=lastPointId-1;
@@ -897,7 +998,7 @@ public class WalkRecorder extends Service implements
                             Utils.loc2LatLng(endLocation));
                 }
             }
-        } else if (!pointIsAllreadyPresent){
+        } else if (toAdd){
             walkLength=walkLength+Utils.getDistance(
                     Utils.loc2LatLng(location),Utils.loc2LatLng(lastPointLocation));
         }
@@ -909,10 +1010,13 @@ public class WalkRecorder extends Service implements
         values.put(DB.KEY_LENGTHNETTO, walkLength-deltaLength);
         DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID+"="+walkId, null);
 
-        LocalBroadcastManager.getInstance(this).sendBroadcast(  // Нарисует добавленную точку
-                new Intent("DoInUIThread")
-                        .putExtra("action", "loadAndDraw"));
-        if (!pointIsAllreadyPresent) {
+        if (screenIsOn) {  // Нарисует все когда включится экран - экономим электроэнергию
+            LocalBroadcastManager.getInstance(this).sendBroadcast(  // Нарисует добавленную точку
+                    new Intent("DoInUIThread")
+                            .putExtra("action", "loadAndDraw"));
+        }
+
+        if (toAdd) {
             lastPointLocation=new Location(location);  // Только здесь
         }
 
@@ -997,6 +1101,7 @@ public class WalkRecorder extends Service implements
         Utils.logD(TAG, "isOurArtefact "+afFilePath);
 
         if ("Camera".equals(bucket) || MapActivity.DIR_AUDIO.equals(bucket)) {
+            Utils.logD(TAG, "isOurArtefact bucket=" + bucket + " -> true");
             return true;
         }
 
@@ -1005,6 +1110,7 @@ public class WalkRecorder extends Service implements
             pattern=Pattern.compile(BAD_PLACES,Pattern.CASE_INSENSITIVE);
         }
         if (pattern.matcher(afFilePath).matches()) {
+            Utils.logD(TAG, "isOurArtefact filepath -> false");
             return false;
         }
         try { // jpg: 2016:02:23 22:15:43
@@ -1014,11 +1120,13 @@ public class WalkRecorder extends Service implements
                     exif.getAttribute(ExifInterface.TAG_DATETIME)+
                     " lastPointTime: "+Utils.time2Str(lastPointTime));
             if (t>0 && t<lastPointTime) {
-                Utils.logD(TAG,"isOurArtefact - false !!!");
+                Utils.logD(TAG,"isOurArtefact time -> false");
                 return false;
             }
         } catch (Exception e) {
         }
+
+        Utils.logD(TAG, "isOurArtefact -> true");
         return true;
 // Добавить: дата из имени файла
 /* Бессмысленно - дата файла всегда равна дате его появления на устройстве
@@ -1071,6 +1179,7 @@ Utils.logD(TAG, "isOurArtefact: "+t+" "+lastPointTime);
         if (settings.getBoolean("developer_start_logcat_recorder_application", false)) {
             String s = settings.getString("developer_logcat_recorder_application", null);
             if (s != null) {
+                Utils.logD(TAG, "switchLogcatRecorder "+on);
                 try {
                     Intent intent = context.getPackageManager().getLaunchIntentForPackage(s);
                     if (on) {
@@ -1089,7 +1198,16 @@ Utils.logD(TAG, "isOurArtefact: "+t+" "+lastPointTime);
                 }
             }
         }
+    }
 
+    static void switchDevelopersLog(boolean on, SharedPreferences settings) {
+        if (settings.getBoolean("developer_write_developers_log", false)) {
+            if (on) {
+                Utils.startDevelopersLog();
+            } else {
+                Utils.stopDevelopersLog();
+            }
+        }
     }
 }
 /*

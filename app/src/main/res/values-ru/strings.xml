@@ -7,7 +7,7 @@
     <string name="action_filter">Фильтр</string>
     <string name="action_new">Начать прогулку</string>
     <string name="action_empty_bin">Очистить корзину</string>
-    <string name="format_walks_deleted">Удалено прогулок - %d</string>
+    <string name="format_walks_deleted">Удалено прогулок: %d</string>
     <string name="format_walk_number_X_is_deleted">Прогулка #%d удалена</string>
     <string name="format_could_not_read_from_file">Не удалось прочесть файл %s</string>
     <string name="format_could_not_write_to_file">Не удалось записать файл %s</string>
@@ -27,9 +27,7 @@
     <string name="action_info">Инфо</string>
     <string name="action_show_entire_route">Показать весь маршрут</string>
     <string name="action_show_afs">Показывать маркеры артефактов</string>
-    <string name="action_hide_afs">HЕ показывать маркеры артефактов</string>
     <string name="action_show_accuracy_circle">Показывать круг точности</string>
-    <string name="action_hide_accuracy_circle">НЕ показывать круг точности</string>
     <string name="action_map_type_satelite">Спутник</string>
     <string name="action_map_type_terrain">Рельеф</string>
     <string name="action_privacy_policy">Политика конфиденциальности</string>
@@ -59,17 +57,19 @@
     <string name="nothing_to_show">Нечего показывать</string>
     <string name="action_map">В карту</string>
     <string name="action_delete_af">Удалить артефакт</string>
+    <string name="action_share_af">Поделиться</string>
     <string name="action_make_walk_icon">Назначить текущую картинку иконкой прогулки</string>
     <string name="action_show_comments">Показывать комментарии</string>
-    <string name="action_hide_comments">НЕ показывать комментарии</string>
-    <string name="af_delete_mode1">Только отцепить файл от прогулки</string>
-    <string name="af_delete_mode2">Удалить файл</string>
+    <string name="af_delete_mode1">Только отцепить файл(ы) от прогулки</string>
+    <string name="af_delete_mode2">Удалить файл(ы)</string>
     <string name="af_deleted">Удален</string>
     <string name="af_deleted2">Удалены</string>
     <string name="af_has_gone">Пропал</string>
     <string name="af_has_gone2">Пропали</string>
     <string name="af_walk_icon_sign">Иконка</string>
-    <string name="warning_icon_delete">Вы удаляете иконку прогулки! Не забудьте назначить новую</string>
+    <string name="warning_icon_delete">Вы удалили иконку прогулки! Не забудьте назначить новую</string>
+    <string name="format_afs_marked_count">Выбрано: %d</string>
+    <string name="format_afs_marked_deletion_warning">Будут удалены!!!</string>
 
     <string name="walk_start">Начало</string>
     <string name="walk_start_place">Место начала</string>
@@ -102,7 +102,7 @@
     <string name="filter_not_in_bin_only">только НЕ в корзине</string>
     <string name="filter_in_bin_only">только в корзине</string>
     <string name="filter_all">все</string>
-    <string name="filter_comment_contains">и у которых комментарий содержит</string>
+    <string name="filter_comment_contains">и у которых комментарий содержит это:</string>
     <string name="filter_apply">Применить</string>
     <string name="filter_clear">По умолчанию</string>
 

@@ -28,6 +28,7 @@ public class WalkFilterDialogFragment extends DialogFragment implements View.OnC
                              Bundle savedInstanceState) {
         Utils.logD(TAG, "onCreateView");
 
+/*
         String s=getResources().getString(R.string.filter_show_walks);
         getDialog().setTitle(s);
         int screenSize=(getResources().getConfiguration().screenLayout &
@@ -38,6 +39,7 @@ public class WalkFilterDialogFragment extends DialogFragment implements View.OnC
             ((TextView) getDialog().findViewById(android.R.id.title)).
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         }
+*/
 
         v = inflater.inflate(R.layout.fragment_walkfilter, null);
         v.findViewById(R.id.buttonApplyFilter).setOnClickListener(this);

@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DialogFragment;
 import android.content.ContentValues;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -12,10 +11,11 @@ import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.util.Log;
+import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -27,17 +27,16 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
-import android.widget.Toast;
+
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 
-import com.google.firebase.analytics.FirebaseAnalytics;
-import com.google.firebase.crashlytics.FirebaseCrashlytics;
-
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
     static final String TAG="gfMainActivity";
 
     static SimpleDateFormat dateFormat=new SimpleDateFormat();
@@ -63,15 +62,12 @@ public class MainActivity extends Activity {
     static final int SETTINGS_REQUEST_CODE=9;
     static String pleaseDo="";  // Просьбы других activity к этой сделать что-нибудь
 
-    static Context appContext;
     SharedPreferences globalSettings;
 
     protected void onCreate(Bundle savedInstanceState) {
         Utils.logD(TAG, "onCreate " + this);
         super.onCreate(savedInstanceState);
 
-        appContext = getApplicationContext();
-        Utils.ini(appContext);
         MyMarker.curActivity=this;
         WalkFilterDialogFragment.mainActivity=this;
 
@@ -91,7 +87,18 @@ public class MainActivity extends Activity {
         DB.dbInit(this);
         condenseAFs();
         makeWalklist();
+
+//throw new RuntimeException("Test Crash"); // Force a crash
     }
+
+/*
+    static void adjustAppBar(AppCompatActivity activity) {
+        ActionBar actionBar;
+        actionBar = activity.getSupportActionBar();
+        actionBar.setBackgroundDrawable(activity.getResources().getDrawable(R.color.colorPrimary));
+    }
+*/
+
     @Override
     protected void onSaveInstanceState(Bundle savedInstanceState) {
         Utils.logD(TAG, "onSaveInstanceState");
@@ -103,6 +110,7 @@ public class MainActivity extends Activity {
             savedInstanceState.putInt("selectedPos", selectedPos);
             savedInstanceState.putInt("firstVisiblePos", firstVisiblePos);
     }
+
     void makeWalklist() {
         Utils.logD(TAG, "makeWalklist");
 
@@ -127,6 +135,8 @@ public class MainActivity extends Activity {
         adapter.setViewBinder(new SimpleCursorAdapter.ViewBinder() {
             public boolean setViewValue(final View view, final Cursor cursor, int columnIndex) {
                 final int position=cursor.getPosition();
+                Utils.logD(TAG, "setViewValue " +position + " " + columnIndex );
+
                 String s;
                 if (columnIndex==cursor.getColumnIndex(DB.KEY_ICON)) {
                     Utils.logD(TAG, "setViewValue "+position+" "+
@@ -191,9 +201,16 @@ public class MainActivity extends Activity {
                 } else if (columnIndex==cursor.getColumnIndex(DB.KEY_COMMENT)) {
                     if ((s=updatedComments[position])==null) {
                         s=cursor.getString(columnIndex);
-                        if (s.isEmpty()) {  // Продолжительность и длина - 2:13 5.456km
-                            s=formDesc(cursor);
+                        if (s.isEmpty()) {
+                            s=formDesc(cursor);  // Продолжительность и длина - 2:13 5.456km
                         }
+                    }
+                    if (s.equals(formDesc(cursor))) {
+                        ((TextView) view).setTextColor(getResources().getColor(R.color.fragment_textColor));
+                        ((TextView) view).setTypeface(null, Typeface.NORMAL);;
+                    } else {
+                        ((TextView) view).setTextColor(getResources().getColor(R.color.fragment_textColor2));
+                        ((TextView) view).setTypeface(null, Typeface.BOLD);;
                     }
                     ((TextView) view).setText(s);
                     return true;
@@ -240,15 +257,18 @@ public class MainActivity extends Activity {
             invalidateOptionsMenu();
         }
         findViewById(R.id.textViewEmptyScreen).setVisibility(
-                itemCount==0 && filterStr== FILTER_STR_NOT_IN_BIN ? View.VISIBLE : View.INVISIBLE);
+                itemCount==0 && FILTER_STR_NOT_IN_BIN.equals(filterStr) ? View.VISIBLE : View.INVISIBLE);
     }
+
     void paintItem(View view, boolean isSelected) {
         int color=getResources().getColor(isSelected ?
-                R.color.main_selectedBackground : R.color.main_normalBackground);
+                R.color.selectedBackground : R.color.normalBackground);
         color=view.getTag(R.id.tag_walkIsDeleted)!=null ?  // А это по tag'у !
-                color - getResources().getColor(R.color.main_deletedDelta) : color; // Все темнее
+                color - getResources().getColor(R.color.deletedDelta) : color; // Все темнее
+        view.setBackgroundTintMode(null);  // Очищает tint из theme, иначе не перекрашивается
         view.setBackgroundColor(color);
     }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         Utils.logD(TAG, "onCreateOptionsMenu");
@@ -272,6 +292,7 @@ public class MainActivity extends Activity {
         optionsMenu=menu;
         return super.onCreateOptionsMenu(menu);
     }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id=item.getItemId();
@@ -311,11 +332,13 @@ public class MainActivity extends Activity {
         }
         return super.onOptionsItemSelected(item);
     }
+
     @Override
     protected void onDestroy() {
         Utils.logD(TAG, "onDestroy " + this);
         super.onDestroy();
     }
+
     @Override
     protected void onStart() {
         Utils.logD(TAG, "onStart");
@@ -323,6 +346,7 @@ public class MainActivity extends Activity {
 
 //        new Handler().removeCallbacksAndMessages(null); // Очищаем лишние нажатия
     }
+
     @Override
     protected void onResume() {
         Utils.logD(TAG, "onResume");
@@ -333,6 +357,7 @@ public class MainActivity extends Activity {
             doAfterReturn();
         }
     }
+
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         Utils.logD(TAG, "onWindowFocusChanged "+" "+hasFocus+
@@ -358,6 +383,7 @@ public class MainActivity extends Activity {
             firstVisiblePos=-1;
         }
     }
+
     void doAfterReturn() {
         Utils.logD(TAG, "doAfterReturn "+pleaseDo);
 
@@ -379,6 +405,7 @@ public class MainActivity extends Activity {
             return;
         }
     }
+
     public static void showWalkOnMap(final Activity activity, final int walkId, final int mode,
                                      final String timeZoneId, boolean withConfirmation,
                                      final int afInGalleryNumber) {
@@ -389,6 +416,8 @@ public class MainActivity extends Activity {
                 cursor.moveToFirst();
                 timeFinish=cursor.getLong(cursor.getColumnIndex(DB.KEY_STARTTIME))+
                         cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION));
+            cursor.close();
+
             String s;
             double timeAfterFinish=(System.currentTimeMillis()-timeFinish)/1e+3;
             if (timeAfterFinish>3600*24*365) {
@@ -422,12 +451,14 @@ public class MainActivity extends Activity {
                     .show();
             return;
         }
+
         Utils.logD(TAG, "showWalkOnMap: "+activity.getLocalClassName());
         if (activity.getLocalClassName().endsWith("MapActivity")) {
             ((MapActivity) activity).enterResumeMode();
         } else {
             Intent intent = new Intent(activity, MapActivity.class);
-            intent.putExtra("walkId", walkId).putExtra("mode", mode)
+            intent.putExtra("walkId", walkId)
+                    .putExtra("mode", mode)
                     .putExtra("timeZoneId", timeZoneId)
                     .putExtra("afInGalleryNumber", afInGalleryNumber)
                     .putExtra("calledFrom", activity.getLocalClassName());
@@ -435,6 +466,7 @@ public class MainActivity extends Activity {
             activity.startActivity(intent);
         }
     }
+
     void updateSelectedItem() {
         Utils.logD(TAG, "updateSelectedItem "+selectedPos+" "+walkId);
 
@@ -456,6 +488,7 @@ public class MainActivity extends Activity {
         }
         cursor.close();
     }
+
     void selectItem(int position, View view) {
         Utils.logD(TAG, "selectItem " + position);
 
@@ -486,6 +519,7 @@ public class MainActivity extends Activity {
             }
         }
     }
+
     static void walkInfo (Activity activity, int walkId, int mode) {
         WalkInfoDialogFragment dlg=new WalkInfoDialogFragment();
         Bundle args=new Bundle();
@@ -494,11 +528,13 @@ public class MainActivity extends Activity {
         dlg.setArguments(args);
         dlg.show(activity.getFragmentManager(), "dlg");
     }
+
     void walkFilter () {
         DialogFragment dlg=new WalkFilterDialogFragment();
         dlg.setArguments(filterParms);
         dlg.show(getFragmentManager(), "dlg");
     }
+
     static void settings(Activity activity, int walkId) {
         Intent intent=new Intent(activity, SettingsActivity.class);
         String preferencesFileName=walkId<0 ?
@@ -506,13 +542,17 @@ public class MainActivity extends Activity {
         intent.putExtra("walkId", walkId).putExtra("preferencesFileName", preferencesFileName);
         activity.startActivityForResult(intent, SETTINGS_REQUEST_CODE);
     }
-    @Override protected void onActivityResult(
-            int requestCode, int resultCode, Intent data) {
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
         switch (requestCode) {
             case SETTINGS_REQUEST_CODE:
                 break;
         }
     }
+
     Bitmap formIcon(long walkId, long afId) {
         Utils.logD(TAG,"formIcon "+walkId+" "+afId);
 
@@ -538,23 +578,20 @@ public class MainActivity extends Activity {
             if (bitmap==null) {
                 if (afId>=0 && afId==cursor.getInt(cursor.getColumnIndex(DB.KEY_AFID)) || afId<0) {
                     afId=cursor.getInt(cursor.getColumnIndex(DB.KEY_AFID));
-                    if ((cursor.getInt(cursor.getColumnIndex(DB.KEY_AFKIND))==Walk.AFKIND_PHOTO ||
-                            cursor.getInt(cursor.getColumnIndex(DB.KEY_AFKIND))==Walk.AFKIND_VIDEO)
-//                            && (new File(cursor.getString(cursor.getColumnIndex(DB.KEY_AFFILEPATH))).exists())) {
-                            && true) {
-                        bitmap = MyMarker.decodeBitmap(null, 0,
-                                cursor.getInt(cursor.getColumnIndex(DB.KEY_AFKIND)),
+                    int afKind=cursor.getInt(cursor.getColumnIndex(DB.KEY_AFKIND));
+                    if (afKind==Walk.AFKIND_PHOTO || afKind==Walk.AFKIND_VIDEO) {
+                        bitmap = MyMarker.decodeBitmap(null, 0, afKind,
                                 cursor.getString(cursor.getColumnIndex(DB.KEY_AFURI)),
                                 cursor.getString(cursor.getColumnIndex(DB.KEY_AFFILEPATH)),
                                 getResources().getDimensionPixelSize(R.dimen.listviewitem_height1), false);
-                        if (cursor.getInt(cursor.getColumnIndex(DB.KEY_AFKIND))==Walk.AFKIND_VIDEO) {
+                        if (afKind==Walk.AFKIND_VIDEO) {
                             bitmap=MyMarker.addOverlayOnBitmap(bitmap, this.getResources(),
-                                    R.drawable.ic_action_play);
+                                    R.drawable.overlay_play);
                         }
+                        bitmap = MyMarker.cropCircle(bitmap);
                     } else {
                         bitmap = MyMarker.decodeBitmap(getResources(),
-                                MyMarker.mmoA[cursor.getInt(cursor.getColumnIndex(DB.KEY_AFKIND))].
-                                        iconResources[0],
+                                afKind == Walk.AFKIND_SPEECH ? R.drawable.ic_point_speech2 : R.drawable.ic_point_text2,
                                 0, null, null,
                                 getResources().getDimensionPixelSize(R.dimen.listviewitem_height1),
                                 false);
@@ -573,7 +610,7 @@ public class MainActivity extends Activity {
             return null;
         }
         if (nAFs>0) {   // Добавляем число артефактов
-            bitmap=MyMarker.addTextOnIcon(bitmap, ""+nAFs, 1, -1);  // В левый верхний угол контрастным цветом
+            bitmap = MyMarker.addTextOnIcon(bitmap, ""+nAFs, 1, Color.BLACK, 0);  // В левый верхний угол контрастным цветом
         }
         // Сохраняем сформированную иконку
         ByteArrayOutputStream stream=new ByteArrayOutputStream(Utils.byteSizeOf(bitmap));
@@ -583,6 +620,7 @@ public class MainActivity extends Activity {
         DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID+"="+walkId, null);
         return bitmap;
     }
+
     void condenseAFs() {
         new Thread(
                 new Runnable() {
@@ -592,6 +630,7 @@ public class MainActivity extends Activity {
                     }
                 }, "gfCondenseAFs").start();
     }
+
     String formDesc(Cursor cursor) {
         return Walk.formTotalStr(globalSettings,
                 cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION)),
@@ -600,6 +639,7 @@ public class MainActivity extends Activity {
                 cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION)), // Чтобы не писал скорость
                 0,0,0,null);
     }
+
     static String secondStr(String timeZoneId, Long startTime, String startPlace) {
         String s=Utils.timeStr(startTime,TimeZone.getTimeZone(timeZoneId));
         if (startPlace!=null && !startPlace.contains("NoAddress")) {
@@ -607,10 +647,12 @@ public class MainActivity extends Activity {
         }
         return s;
     }
+
     static void showHelp(Activity activity) {
         Intent intent=new Intent(activity, HelpActivity.class);
         activity.startActivity(intent);
     }
+
     static void showPrivacyPolicy(Activity activity) {
         Uri uri = Uri.parse(activity.getResources().getString(R.string.url_privacy_policy));
         Intent intent = new Intent(Intent.ACTION_VIEW, uri);

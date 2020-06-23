@@ -13,13 +13,6 @@
             android:maxLength="3"
             android:defaultValue="60"
         		/>
-        <!--ListPreference
-            android:key="recording_max_seconds_between_points"
-            android:title="@string/title_recording_max_seconds_between_points"
-            android:summary="@string/summary_recording_max_seconds_between_points"
-            android:defaultValue="1"
-            android:entries="@array/listArray1"
-            android:entryValues="@array/listValues1" /-->
         <EditTextPreference
             android:key="recording_min_meters_between_points"
             android:title="@string/title_recording_min_meters_between_points"
@@ -49,6 +42,7 @@
         android:key="map_settings"
         android:title="@string/title_map_settings"
         android:persistent="true">
+<!--
         <EditTextPreference
             android:key="map_current_location_request_interval"
             android:title="@string/title_map_current_location_request_interval"
@@ -57,6 +51,7 @@
             android:maxLength="3"
             android:defaultValue="10"
             />
+-->
         <EditTextPreference
             android:key="map_min_possible_speed"
             android:title="@string/title_map_min_possible_speed"
@@ -122,6 +117,11 @@
         <CheckBoxPreference
             android:key="developer_start_logcat_recorder_application"
             android:title="Start logcat recorder application"
+            android:defaultValue="false"
+            />
+        <CheckBoxPreference
+            android:key="developer_write_developers_log"
+            android:title="Write developer's log"
             android:defaultValue="false"
             />
     </PreferenceCategory>

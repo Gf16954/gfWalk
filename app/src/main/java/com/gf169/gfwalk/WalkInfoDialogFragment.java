@@ -38,7 +38,7 @@ import java.util.TimeZone;
 public class WalkInfoDialogFragment extends DialogFragment implements View.OnClickListener {
     static final String TAG = "gfWalkInfoDialogFragmnt";
 
-    Activity activity;  // Кто вызвал
+    Activity curActivity;  // Кто вызвал
     MainActivity mainActivity;
     MapActivity mapActivity;
     GalleryActivity galleryActivity;
@@ -57,7 +57,6 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
 
     SimpleDateFormat dateFormat=new SimpleDateFormat();
     TimeZone timeZone;
-
 /*
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
@@ -71,59 +70,34 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
 
         isCancelled=false;
 
-        activity=getActivity();
+        curActivity=getActivity();
         Bundle args=getArguments();
         walkId=args.getInt("walkId");
         mode=args.getInt("mode");
 
-        if (activity.getLocalClassName().contains("Map")) {
-            mapActivity=(MapActivity) activity; // Остальные остаются null
-        } else if (activity.getLocalClassName().contains("Gallery")) {
-            galleryActivity=(GalleryActivity) activity;
+        if (curActivity.getLocalClassName().contains("Map")) {
+            mapActivity=(MapActivity) curActivity; // Остальные остаются null
+        } else if (curActivity.getLocalClassName().contains("Gallery")) {
+            galleryActivity=(GalleryActivity) curActivity;
         } else {
-            mainActivity=(MainActivity) activity;
+            mainActivity=(MainActivity) curActivity;
         }
 
         Resources res=getResources();
-        getDialog().setTitle(" " + res.getString(R.string.walk_header) + walkId);
-
-//        getDialog().getWindow().setBackgroundDrawableResource(R.drawable.background_info);
-//  Пропадает тень :(
-        TextView t=(TextView) getDialog().findViewById(android.R.id.title);  // Заголовок рихтуем здесь
-        if (t!=null) { // Андроид сам может выкинуть если мало места
-            t.setBackgroundColor(res.getColor(R.color.walkinfo_color0));
-            t.setTextColor(res.getColor(R.color.walkinfo_color1));
-//            View titleDivider = getDialog().findViewById(android.R.id.titleDivider);
-//  Не компилируется !!!
-            View titleDivider = getDialog().findViewById(
-                    res.getIdentifier("titleDivider", "id", "android"));
-            if (titleDivider != null) {
-                titleDivider.setBackgroundColor(res.getColor(R.color.walkinfo_color0));
-            }
-//  А остальное красится в layout'e
-        }
-        int screenSize=(res.getConfiguration().screenLayout &
-                Configuration.SCREENLAYOUT_SIZE_MASK);
-        if (screenSize==Configuration.SCREENLAYOUT_SIZE_SMALL ||
-            screenSize==Configuration.SCREENLAYOUT_SIZE_NORMAL) {
-            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-            if (screenSize==Configuration.SCREENLAYOUT_SIZE_SMALL && t!=null) { // Андроид сам может выкинуть если мало места
-                t.getLayoutParams().height=Utils.dpyToPx(20);
-                t.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
-            }
-        }
 
         v = inflater.inflate(R.layout.fragment_walkinfo, null);
 
-        DB.dbInit(activity);
+        DB.dbInit(curActivity);
         cursor=DB.db.query(DB.TABLE_WALKS, arrayColumns,
                 DB.KEY_ID+"="+walkId, null, null, null, null);
         if (cursor==null || !cursor.moveToFirst()) {
-            getDialog().setTitle(
-                    String.format(res.getString(R.string.format_walk_has_gone),
-                            walkId));
+            ((TextView) v.findViewById(R.id.textViewTitle)).
+                setText(String.format(res.getString(R.string.format_walk_has_gone), walkId));
             return v;
         }
+
+        ((TextView) v.findViewById(R.id.textViewTitle)).
+            setText(res.getString(R.string.walk_header) + walkId);
 
         timeZone=TimeZone.getTimeZone(cursor.getString(
                 cursor.getColumnIndex(DB.KEY_TIMEZONE)));
@@ -196,7 +170,7 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
         TextView tv=(TextView)v.findViewById(R.id.textViewComment2);
         tv.setText(s);
 /*
-        ImageSpan span = new ImageSpan(activity, R.drawable.hint_write,
+        ImageSpan span = new ImageSpan(curActivity, R.drawable.hint_write,
                 ImageSpan.ALIGN_BOTTOM);
         SpannableStringBuilder ssb = new SpannableStringBuilder(" ");
         ssb.setSpan(span,0,1,Spannable.SPAN_INCLUSIVE_INCLUSIVE );
@@ -207,7 +181,7 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
 */
 /* Был и такой вариант
-        Typeface font = Typeface.createFromAsset(activity.getAssets(), "fonts/wingding.ttf");
+        Typeface font = Typeface.createFromAsset(curActivity.getAssets(), "fonts/wingding.ttf");
         ((TextView) v.findViewById(R.id.textViewComment2)).setTypeface(font);
 */
         Drawable image;
@@ -244,24 +218,24 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
             if (galleryActivity!=null) {
                 galleryActivity.showWalkOnMap();
             } else {
-                MainActivity.showWalkOnMap(activity, walkId, MapActivity.MODE_PASSIVE,
+                MainActivity.showWalkOnMap(curActivity, walkId, MapActivity.MODE_PASSIVE,
                         timeZone.getID(), false, -1);
             }
         } else if (v==v.findViewById(R.id.buttonViewInGallery)) {
             if (mapActivity!=null) {
                 mapActivity.showGallery2();
             } else {
-                MapActivity.showGallery(activity, new Walk(activity, walkId),
+                MapActivity.showGallery(curActivity, new Walk(curActivity, walkId),
                         null, null, -1, MapActivity.MODE_PASSIVE, false);
             }
         } else if (v==v.findViewById(R.id.buttonToFromBin)) {
             toFromBin();
             MainActivity.pleaseDo=MainActivity.pleaseDo+"refresh entire list, restore selection";
         } else if (v==v.findViewById(R.id.buttonResume)) {
-            MainActivity.showWalkOnMap(activity, walkId, MapActivity.MODE_RESUME,
+            MainActivity.showWalkOnMap(curActivity, walkId, MapActivity.MODE_RESUME,
                     timeZone.getID(), true, -1);
         } else if (v==v.findViewById(R.id.buttonDelete)) {
-            walkDelete(activity,DB.KEY_ID+"=" + walkId,v,this,1);
+            walkDelete(curActivity,DB.KEY_ID+"=" + walkId,v,this,1);
             return; // !!!
         }
         dismiss();  // Вернемся сразу в Main
@@ -295,9 +269,8 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
         }
         super.onDismiss(dialog);
     }
-    public static void walkDelete(final Activity activity,       final String what, final View anchor,
-                                  final DialogFragment dialogFragment,
-                                  final int itemCount) {
+    public static void walkDelete(final Activity activity, final String what, final View anchor,
+                                  final DialogFragment dialogFragment, final int itemCount) {
         Context context = activity;
         // Меню без разделителей. Статически (by XML) не получилось.
         context = new ContextThemeWrapper(context, R.style.Theme_AppCompat_Light_DarkActionBar);

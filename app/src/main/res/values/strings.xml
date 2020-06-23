@@ -7,7 +7,7 @@
     <string name="action_filter">Filter</string>
     <string name="action_new">Let\'s walk</string>
     <string name="action_empty_bin">Empty bin</string>
-    <string name="format_walks_deleted">Walks deleted - %d</string>
+    <string name="format_walks_deleted">Walks deleted: %d</string>
     <string name="format_walk_number_X_is_deleted">The walk #%d is deleted</string>
     <string name="format_could_not_read_from_file">Failed to read from file %s</string>
     <string name="format_could_not_write_to_file">Fail to write into file %s</string>
@@ -27,9 +27,7 @@
     <string name="action_info">Info</string>
     <string name="action_show_entire_route">Show entire route</string>
     <string name="action_show_afs">Show artefact markers </string>
-    <string name="action_hide_afs">Hide artefact markers </string>
     <string name="action_show_accuracy_circle">Show accuracy circle</string>
-    <string name="action_hide_accuracy_circle">Hide accuracy circle</string>
     <string name="action_map_type_satelite">Satelite</string>
     <string name="action_map_type_terrain">Terrain</string>
     <string name="action_privacy_policy">Privacy policy</string>
@@ -59,18 +57,19 @@
     <string name="nothing_to_show">Nothing to show</string>
     <string name="action_map">Show map</string>
     <string name="action_delete_af">Delete</string>
+    <string name="action_share_af">Share</string>
     <string name="action_make_walk_icon">Use the picture as the walk\'s cover</string>
     <string name="action_show_comments">Show notes</string>
-    <string name="action_hide_comments">Hide notes</string>
-    <string name="af_delete_mode1">Detach file from the walk without deletion</string>
-    <string name="af_delete_mode2">Delete file</string>
+    <string name="af_delete_mode1">Detach file(s) from the walk without deletion</string>
+    <string name="af_delete_mode2">Delete file(s)</string>
     <string name="af_deleted">Deleted</string>
     <string name="af_deleted2">Deleted</string>
     <string name="af_has_gone">Missing</string>
     <string name="af_has_gone2">Missing</string>
     <string name="af_walk_icon_sign">Cover</string>
-    <string name="warning_icon_delete">You are about to delete the walk\'s cover! Don\'t forget to
-        choose another one</string>
+    <string name="warning_icon_delete">You have deleted the walk\'s cover! Don\'t forget to choose another one</string>
+    <string name="format_afs_marked_count">Selected: %d</string>
+    <string name="format_afs_marked_deletion_warning">Will be deleted!!!</string>
 
     <string name="walk_start">Start</string>
     <string name="walk_start_place">Start place</string>
@@ -103,7 +102,7 @@
     <string name="filter_not_in_bin_only">NOT in bin only</string>
     <string name="filter_in_bin_only">in bin only</string>
     <string name="filter_all">all</string>
-    <string name="filter_comment_contains">and comment contains this:</string>
+    <string name="filter_comment_contains">and whose comment contains this:</string>
     <string name="filter_apply">Apply</string>
     <string name="filter_clear">Default</string>
 

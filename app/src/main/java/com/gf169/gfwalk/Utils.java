@@ -39,6 +39,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -111,7 +112,7 @@ public class Utils {
         if (loc == null) {
             return "";
         }
-        String s = String.format("%.6f%s%.6f%s%.0f%s%.0f%s%.6f%s%.0f",
+        String s = String.format("%.6f%s%.6f%s%.0f%s%.0f%s%.1f%s%.0f",
                 loc.getLatitude(), " ", loc.getLongitude(), " ",
                 loc.hasAltitude() ? loc.getAltitude() : IMPOSSIBLE_ALTITUDE, " ",
                 loc.hasAccuracy() ? loc.getAccuracy() : -1, " ",
@@ -210,6 +211,15 @@ public class Utils {
         return s;
     }
 
+    public static String durationStr2(long duration) { // 2:03:33
+        duration = duration / 1000;
+        long hours = duration / 3600;
+        long minutes = (duration - hours * 3600) / 60;
+        long seconds = duration - hours * 3600 - minutes * 60;
+        String s = String.format("%d%s%02d%s%02d", hours, ":", minutes, ":", seconds);
+        return s;
+    }
+
     public static String lengthStr(float length, float lengthNetto) { // 11.5km
         String s = String.format("%.3f", length / 1000);
         if (lengthNetto > 0) {
@@ -251,14 +261,14 @@ public class Utils {
         return
                 String.format("%.6f%s%.6f",  // 6-ой знак - 0.1 м
                         location.getLatitude(), "° ", location.getLongitude()) + "°"
-                        + (location.hasAltitude() ?
-                        " " + Utils.altitudeStr(location.getAltitude(), altPrev, altIni) : "?m")
-                        + (location.hasAccuracy() ?
-                        " " + Utils.accuracyStr(location.getAccuracy()) : "±?")
-                        + (location.hasSpeed() ?
-                        " " + String.format("%.1f", location.getSpeed() * 3.6) : "?") + "km/h"
-                        + (location.hasBearing() ?
-                        " " + String.format("%.0f", location.getBearing()) : "?") + "°"
+                        + " " + (location.hasAltitude() ?
+                        Utils.altitudeStr(location.getAltitude(), altPrev, altIni) : "?m")
+                        + " " + (location.hasAccuracy() ?
+                        Utils.accuracyStr(location.getAccuracy()) : "±?")
+                        + " " + (location.hasSpeed() ?
+                        String.format("%.1f", location.getSpeed() * 3.6) : "?") + "km/h"
+                        + " " + (location.hasBearing() ?
+                        String.format("%.0f", location.getBearing()) : "?") + "°"
                 ;
     }
 
@@ -432,9 +442,58 @@ public class Utils {
         }
     }
 
+    static OutputStreamWriter logWriter;
+    static void startDevelopersLog() {
+        Utils.logD(TAG, "Starting developer's log");
+
+        String dir = Utils.createDirIfNotExists(appContext.getExternalFilesDir(null).getAbsolutePath(), "Logs");
+        String logFilePath = dir + "/" +
+                new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".txt";
+        try {
+            logWriter=new OutputStreamWriter(
+                    new FileOutputStream(new File(logFilePath)));
+        } catch (java.io.IOException e) {
+            String s = "Could not create developer's log " + logFilePath;
+            Log.e(TAG, s);
+            Toast.makeText(appContext, s,
+                    Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+            logWriter = null;
+        }
+    }
+
+    static void stopDevelopersLog() {
+        logD(TAG, "Stopping developer's log");
+
+        try {
+            logWriter.close();
+        } catch (IOException e) {
+            String s = "Could not close developer's log";
+            Log.e(TAG, s);
+            Toast.makeText(appContext, s, Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+        }
+        logWriter = null;
+    }
+
     public static void logD(String tag, String msg) {
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.BUILD_TYPE.equals("debug")) {
             Log.d(tag, msg);
+
+            if (logWriter != null) {
+                String s = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.sss").format(new Date()) +
+                        " " + tag + " " + msg;
+                try {
+                    logWriter.write(s + "\n");
+                    logWriter.flush();
+                } catch (IOException e) {
+                    s = "Could not write a line to developer's log";
+                    Log.e(TAG, s);
+                    Toast.makeText(appContext, s,
+                            Toast.LENGTH_LONG).show();
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
@@ -590,7 +649,7 @@ public class Utils {
     }
 
     static void FALogEvent(String eventName, String paramName, String paramValue) {
-//        Log.d("FALogEvent",eventName+" "+eventValue);
+        logD("FALogEvent",eventName+" "+ paramName + "=" + paramValue);
 // Сам пишет:  D/FA: Logging event ...  Не пишет!
         Bundle bundle = new Bundle();
         bundle.putString(paramName, paramValue);

@@ -6,11 +6,9 @@
     android:paddingRight="@dimen/main_horizontalMargin"
     android:paddingTop="@dimen/main_verticalMargin"
     android:paddingBottom="@dimen/main_verticalMargin"
-    android:background="@color/main_normalBackground"
-    tools:context=".MyActivity"
+    tools:context=".MainActivity"
     >
     <LinearLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
         android:id="@+id/horizontalScrollView1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -27,7 +25,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center_horizontal|center_vertical"
-        android:textSize="50dp"
+        android:textSize="50sp"
         android:text="@string/press_plus"/>
 </RelativeLayout>
 

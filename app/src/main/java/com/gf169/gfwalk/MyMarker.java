@@ -5,6 +5,7 @@
 package com.gf169.gfwalk;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -12,15 +13,17 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.location.Location;
-import android.media.ExifInterface;
+// import android.media.ExifInterface;
+import androidx.exifinterface.media.ExifInterface;
 import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.util.DisplayMetrics;
-import android.util.Log;
 
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -40,6 +43,7 @@ class MyMarker {
     private static final float MARKER_ROTATION=0.001F;
     private static final long COMPAS_INTERVAL=100;  // Частота опроса компас и поворота маркера текущего положения
 
+    static Context appContext;
     static Activity curActivity;
     static MapActivity mapActivity;
     private static Handler handler;
@@ -87,7 +91,7 @@ class MyMarker {
             new MyMarkerOptions(new int[]{R.drawable.ic_point_speech},0.040F,5,10,0.0F,1.0F,2,0.5F,0,0,0,0),  // Speech
             new MyMarkerOptions(new int[]{R.drawable.ic_point_text},  0.040F,5,10,1.0F,0.0F,4,0.5F,0,0,0,0),  // Text
             new MyMarkerOptions(new int[]{R.drawable.ic_point_video}, 0.075F,8,15,1.0F,1.0F,1,0.5F,0,0,  // Video
-                                R.drawable.ic_action_play,0),
+                                R.drawable.overlay_play,0),
             new MyMarkerOptions(new int[]{R.drawable.ic_point_end_active},0.025F,3,5,0.5F,0.5F,0,0.5F,0,0,0,0),
             new MyMarkerOptions(new int[]{R.drawable.ic_point_end_passive},0.025F,3,5,0.5F,0.5F,0,0.5F,0,0,0,0),
             new MyMarkerOptions(new int[]{R.drawable.ic_point_start},0.025F,3,5,0.5F,0.5F,0,0.5F,0,0,0,0),
@@ -201,10 +205,13 @@ class MyMarker {
                     0.030F,4,6,0.5F,0.5F,0,0.5F,100,0,0,6), // Текущее положение c направлением
     };
     static DisplayMetrics metrics=Resources.getSystem().getDisplayMetrics();
-    static BitmapFactory.Options bfo = new BitmapFactory.Options();
     static Random random=new Random();
     static Vector<Marker> workMarkers=new Vector<>(10,10); // Рабочий массив для одноразовых маркеров
 
+    static void ini(Context appContext) {
+        MyMarker.appContext = appContext;
+    }
+    
     static void drawMarker(
         final GoogleMap map,
         final Vector<Marker> markers,
@@ -361,7 +368,7 @@ class MyMarker {
                 dstHeight=Math.max(dstHeight,mmo.minHeight*metrics.densityDpi/25.4F);
                 dstHeight=Math.min(dstHeight,mmo.maxHeight*metrics.densityDpi/25.4F);
                 mmo.realHeight=(int) dstHeight;  // Это требуемая высота иконки в пикселах
-                mmo.bitmaps[k]=decodeBitmap(MainActivity.appContext.getResources(),mmo.iconResources[k],
+                mmo.bitmaps[k]=decodeBitmap(appContext.getResources(),mmo.iconResources[k],
                         0,null,null,mmo.realHeight,false);
             }
         }
@@ -370,7 +377,7 @@ class MyMarker {
                 (Uri != null | filePath!=null))  {
             bitmap = decodeBitmap(null,0,markerKind,Uri,filePath,mmo.realHeight,false);
             if (mmo.overlayRes!=0) {
-                bitmap=addOverlayOnBitmap(bitmap, MainActivity.appContext.getResources(), mmo.overlayRes);
+                bitmap=addOverlayOnBitmap(bitmap, appContext.getResources(), mmo.overlayRes);
             }
         }
         if (bitmap==null) {
@@ -379,7 +386,7 @@ class MyMarker {
         }
         if (textOnIcon!=null) {       // Накладываем на нее текст
             bitmap=addTextOnIcon(bitmap, textOnIcon, mmo.textCorner,
-                   textOnIcon.equals(MainActivity.appContext.getResources().getString(R.string.af_has_gone)) ?
+                   textOnIcon.equals(appContext.getResources().getString(R.string.af_has_gone)) ?
                            Color.RED : -1);
         }
         return bitmap;
@@ -392,7 +399,7 @@ class MyMarker {
             return decodeBitmap2(resources, resId, afKind, afUri, afFilePath, height,dontResize);
         } catch (OutOfMemoryError e) {  // Дефолтная иконка
             e.printStackTrace();
-            return decodeBitmap2(MainActivity.appContext.getResources(),mmoA[afKind].iconResources[0],
+            return decodeBitmap2(appContext.getResources(),mmoA[afKind].iconResources[0],
                     0,null,null,height,dontResize);
         }
     }
@@ -418,13 +425,13 @@ class MyMarker {
                     MediaStore.Images.Thumbnails.MICRO_KIND : MediaStore.Images.Thumbnails.MINI_KIND;
             if (afKind==Walk.AFKIND_PHOTO) {
                 bitmap=MediaStore.Images.Thumbnails.getThumbnail(
-                        MainActivity.appContext.getContentResolver(),
+                        appContext.getContentResolver(),
                         Long.parseLong(Uri.parse(afUri).getLastPathSegment()),
                         kind, null);
                 bitmap=rotateBitmap(bitmap, afFilePath);
             } else if (afKind==Walk.AFKIND_VIDEO) {
                 bitmap=MediaStore.Video.Thumbnails.getThumbnail(
-                        MainActivity.appContext.getContentResolver(),
+                        appContext.getContentResolver(),
                         Long.parseLong(Uri.parse(afUri).getLastPathSegment()),
                         kind, null);
             }
@@ -433,12 +440,14 @@ class MyMarker {
             if (afKind==Walk.AFKIND_PHOTO) {
                 Utils.logD(TAG,"Decoding image file: "+afFilePath+" "+height);
 
+                BitmapFactory.Options bfo = new BitmapFactory.Options();
                 bfo.inJustDecodeBounds=true; // Узнаем размер исходной картинки
                 BitmapFactory.decodeFile(afFilePath, bfo);
                 bfo.inJustDecodeBounds=false;
                 bfo.inMutable=true;
                 bfo.inTargetDensity=metrics.densityDpi;  // Так ...
-                if (false) {//dontResize) //TODO: Не переворачивает. И пропадает ! Разобраться !
+                //if (false) {//dontResize) //Глюк? TODO: Не переворачивает. И пропадает ! Разобраться !
+                if (dontResize) {
                     bfo.inScaled=false;
                     bfo.inDensity=0;
                 } else {
@@ -480,45 +489,60 @@ class MyMarker {
     }
 
     static Bitmap addTextOnIcon(Bitmap bitmap, String text, int textCorner, int color) {
+        return addTextOnIcon(bitmap, text, textCorner, color,
+                appContext.getResources().getInteger(R.integer.text_on_bmp_padding));
+    }
+
+    static Bitmap addTextOnIcon(Bitmap bitmap, String text, int textCorner, int color, int padding /* % */) {
         if (!bitmap.isMutable()) {
             bitmap=bitmap.copy(Bitmap.Config.ARGB_8888, true);
         }
 
         Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
-        float height=MainActivity.appContext.getResources().getInteger(R.integer.text_on_bmp_height)/100.0F;
+        float height=appContext.getResources().getInteger(R.integer.text_on_bmp_height)/100.0F;
         paint.setTextSize((int) (bitmap.getHeight()*height));
         paint.setFakeBoldText(true);
-//        paint.setShadowLayer(1f, 0f, 1f, Color.WHITE);
+
+        if (color == Color.BLACK) {
+            paint.setShadowLayer(2f, 2f, 2f, Color.WHITE);
+        } else if (color == Color.WHITE) {
+            paint.setShadowLayer(2f, 2f, 2f, Color.BLACK);
+        }
+
         Rect bounds=new Rect();
         paint.getTextBounds(text, 0, text.length(), bounds);
-        int x=(bitmap.getWidth()-bounds.width())/2; // textCorner==0
-        int y=(bitmap.getHeight()+bounds.height())/2;
-        float padding=MainActivity.appContext.getResources().getInteger(R.integer.text_on_bmp_padding)/100.0F;
-        int padX=(int) (padding*bitmap.getWidth());
-        int padY=(int) (padding*bitmap.getHeight());
-        if (textCorner==0) {  // Координаты левого нижнего угла прямоугольника в котором текст
-            x=Math.max(bitmap.getWidth()/2-bounds.width()/2, 0);
-            y=bitmap.getHeight()/2+bounds.height()/2;
+        int padX=(int) (padding / 100.0F * bitmap.getWidth());
+        int padY=(int) (padding / 100.0F * bitmap.getHeight());
+        //                  * (0,0)
+        //                    1 | 2
+        //                    --0--
+        //                    4 | 3
+        // Координаты левого нижнего угла прямоугольника в котором текст
+        int x = 0;
+        int y = 0;
+        if (textCorner == 0) {
+            x=Math.max(bitmap.getWidth() / 2 - bounds.width() / 2, 0);
+            y=bitmap.getHeight() / 2 + bounds.height() / 2;
         } else if (textCorner==1) {
             x=padX;
             y=bounds.height()+padY;
-        } else if (textCorner==2) {
-            x=Math.max(bitmap.getWidth()-padX-bounds.width(), 0);
-            y=bounds.height()+padY;
-        } else if (textCorner==3) {
-            x=Math.max(bitmap.getWidth()-padX-bounds.width(), 0);
-            y=Math.max(bitmap.getHeight()-padY, 0);
-        } else if (textCorner==4) {
-            x=padX;
-            y=Math.max(bitmap.getHeight()-padY, 0);
+        } else if (textCorner == 2) {
+            x = Math.max(bitmap.getWidth() - padX - bounds.width(), 0);
+            y = bounds.height() + padY;
+        } else if (textCorner == 3) {
+            x = Math.max(bitmap.getWidth() - padX - bounds.width(), 0);
+            y = Math.max(bitmap.getHeight() - padY, 0);
+        } else if (textCorner == 4) {
+            x = padX;
+            y = Math.max(bitmap.getHeight() - padY, 0);
         }
 
         paint.setColor(color);
         if (color==-1) {
             paint.setColor(getContrastColor(
-                    Bitmap.createBitmap(bitmap, x, Math.max(y-bounds.height(), 0),
-                            Math.min(bounds.width(), bitmap.getWidth()-x),
-                            Math.min(bounds.height(), bitmap.getHeight()-y))));
+                    Bitmap.createBitmap(bitmap, x, Math.max(y - bounds.height() - padY, 0),
+                            Math.min(bounds.width(), bitmap.getWidth() - x),  // Ширина
+                            Math.min(bounds.height(), bitmap.getHeight() - y))));  // Высота
         }
 
         new Canvas(bitmap).drawText(text,x,y,paint);
@@ -527,11 +551,12 @@ class MyMarker {
 
     static Bitmap addOverlayOnBitmap(Bitmap bitmap, Resources resources, int resId) {
         // Получаем overlay - Bitmap такой же высоты, как и bitmap
+        BitmapFactory.Options bfo = new BitmapFactory.Options();
         bfo.inJustDecodeBounds=true; // Узнаем размер исходной картинки
         BitmapFactory.decodeResource(resources, resId, bfo);
         bfo.inJustDecodeBounds=false;
         bfo.inTargetDensity=metrics.densityDpi;  // Так ...
-        bfo.inDensity=bfo.inTargetDensity*bfo.outHeight/bitmap.getHeight(); // и только так !
+        bfo.inDensity=bfo.inTargetDensity * bfo.outHeight / bitmap.getHeight(); // и только так !
         bfo.inMutable=true;
         Bitmap overlay=BitmapFactory.decodeResource(resources, resId, bfo);
 
@@ -618,6 +643,21 @@ class MyMarker {
             e.printStackTrace();
             return bitmap;
         }
+    }
+
+    static Bitmap cropCircle(Bitmap bitmap) { // https://gist.github.com/jewelzqiu/c0633c9f3089677ecf85
+        Bitmap output = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(output);
+        final Paint paint = new Paint();
+        final Rect rect = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
+
+        paint.setAntiAlias(true);
+        canvas.drawARGB(0, 0, 0, 0);
+        canvas.drawCircle(bitmap.getWidth() / 2, bitmap.getHeight() / 2, bitmap.getWidth() / 2, paint);
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+        canvas.drawBitmap(bitmap, rect, rect, paint);
+
+        return output;
     }
 
     static void killMarker(final Vector<Marker> markers, final int markerIndex) {

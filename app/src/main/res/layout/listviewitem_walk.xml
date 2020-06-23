@@ -1,62 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/listviewitem_height1"
     >
 
     <ImageView
         android:id="@+id/imageViewIcon"
-        android:src="@drawable/ic_gallery_border"
+        android:layout_height="match_parent"
         android:layout_width="@dimen/listviewitem_height1"
-        android:paddingLeft="@dimen/listviewitem_horisontalPadding"
         android:paddingTop="@dimen/listviewitem_verticalPadding"
         android:paddingBottom="@dimen/listviewitem_verticalPadding"
-        android:layout_height="@dimen/listviewitem_height1"
         />
-    <Button
+
+    <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/buttonWalkId"
-        android:layout_width="wrap_content"
-        android:layout_height="@dimen/listviewitem_height1"
-        android:layout_toRightOf="@id/imageViewIcon"
-        android:textSize="@dimen/listviewitem_textSize1"
+        android:layout_toEndOf="@id/imageViewIcon"
+        android:layout_width="60dp"
+        android:layout_height="match_parent"
+        android:layout_marginTop="0dp"
+        android:layout_marginBottom="0dp"
+        android:paddingLeft="0dp"
+        android:paddingRight="0dp"
+        app:backgroundTint="@color/buttonBackground"
         android:textStyle="bold"
-        android:shadowColor="#FF0000"
-        android:shadowDx="2"
+        android:text="#999"
         android:focusable="false"
         android:focusableInTouchMode="false"
-        android:text="#999"/> <!-- Без последних двух строка не кликается -->
+        />
+<!-- Без последних двух строка не кликается -->
+<!-- Не работает
+    app:strokeColor="@color/colorButtonStroke"
+    app:strokeWidth="0dp"
+    app:elevation="0dp"
+-->
+
     <TextView
         android:id="@+id/textViewString1"
-        android:paddingLeft="2dp"
         android:layout_width="wrap_content"
         android:layout_height="@dimen/listviewitem_height2"
-        android:layout_toRightOf="@id/buttonWalkId"
+        android:layout_toEndOf="@id/buttonWalkId"
+        android:layout_marginTop="@dimen/listviewitem_verticalPadding"
+        android:layout_marginStart="5dp"
         android:textSize="@dimen/listviewitem_textSize1"
         android:textColor="#000000"
         android:textStyle="bold"
-        android:text="ww"/>
+        android:text="Qqq"/>
     <TextView
         android:id="@+id/textViewString2"
-        android:paddingLeft="4dp"
         android:layout_width="wrap_content"
         android:layout_height="@dimen/listviewitem_height2"
-        android:layout_toRightOf="@id/textViewString1"
+        android:layout_toEndOf="@id/textViewString1"
+        android:layout_marginTop="@dimen/listviewitem_verticalPadding"
+        android:layout_marginStart="5dp"
         android:singleLine="true"
-        android:textSize="@dimen/listviewitem_textSize1"
-        android:textColor="#0000FF"
-        android:text="eeeee ffffffffffffff"/>
+        android:textSize="@dimen/listviewitem_textSize2"
+        android:textColor="#000000"
+        android:gravity="center"
+        android:text="22:33"/>
     <TextView
         android:id="@+id/textViewString3"
-        android:paddingLeft="2dp"
+        android:paddingStart="5dp"
         android:layout_width="match_parent"
         android:layout_height="@dimen/listviewitem_height3"
-        android:layout_alignLeft="@id/textViewString1"
         android:layout_alignStart="@id/textViewString1"
         android:layout_below="@id/textViewString1"
         android:singleLine="true"
         android:textSize="@dimen/listviewitem_textSize2"
         android:textColor="#000000"
-        android:text="ee"/> <!--        android:typeface="monospace" -->
+        android:text="11:11"/>
 </RelativeLayout>
 

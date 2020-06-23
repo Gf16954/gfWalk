@@ -16,10 +16,12 @@ import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
 import android.util.Log;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import java.util.Iterator;
 import java.util.Map;
 
-public class SettingsActivity extends Activity
+public class SettingsActivity extends AppCompatActivity
         implements SharedPreferences.OnSharedPreferenceChangeListener {
     static final String TAG="gfSettingsActivity";
 
@@ -50,16 +52,18 @@ public class SettingsActivity extends Activity
 
             if (!(" "+curSettings.getString("developer_devices","")+" ").contains(
                     " "+Utils.getDeviceId()+" ") &&
-                    !"1891453df5be6242".equals(Utils.getDeviceId())) {  // Xiaomi Redmi Note 7
-                                                                        // com.dp.logcatapp
+                    !getResources().getString(R.string.debug_devices_ids).contains(Utils.getDeviceId())) {
                 PreferenceScreen rootPreferences = (PreferenceScreen) findPreference("root_preferences");
                 ((PreferenceCategory) rootPreferences.findPreference("developer_options")).removeAll();
                 rootPreferences.removePreference(findPreference("developer_options"));
+            } else {
+                findPreference("developer_devices").setEnabled(false);
             }
 
             setRetainInstance(true); // !!!
         }
     }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Utils.logD(TAG, "onCreate");
@@ -92,6 +96,7 @@ public class SettingsActivity extends Activity
         preferenceFragment=new MyPreferenceFragment();
         getFragmentManager().beginTransaction().replace(android.R.id.content, preferenceFragment).commit();
     }
+
     @Override
     public void onBackPressed() {
         Utils.logD(TAG, "onBackPressed");
@@ -133,6 +138,7 @@ public class SettingsActivity extends Activity
 
         super.onBackPressed();
     }
+
     @Override
     protected void onSaveInstanceState(Bundle savedInstanceState) {
         // Вызывается между onPause и onStop
@@ -141,18 +147,21 @@ public class SettingsActivity extends Activity
         savedInstanceState.putInt("walkId", walkId);
         savedInstanceState.putString("preferencesFileName", preferencesFileName);
     }
+
     @Override
     public void onResume() {
         super.onResume();
 
         curSettings.registerOnSharedPreferenceChangeListener(this);
     }
+
     @Override
     public void onPause() {
         super.onPause();
 
         curSettings.unregisterOnSharedPreferenceChangeListener(this);
     }
+
     static SharedPreferences getCurrentWalkSettings(Context context, int walkId) {
         // currentSettings = globalSettings + walkSettings (сверху)
         // Оттуда будут браться реальные настройки и их будем редактироать в SettingsActivity
@@ -169,11 +178,7 @@ public class SettingsActivity extends Activity
         Map<String, ?> walkSettingsMap=walkSettings.getAll();
         SharedPreferences currentWalkSettings=context.getSharedPreferences("CurrentWalk", MODE_PRIVATE);
         SharedPreferences.Editor editor=currentWalkSettings.edit();
-/*
-        Iterator iterator=globalSettingsMap.keySet().iterator(); // Все настройки
-        while (iterator.hasNext()) {
-            String key=(String) iterator.next();
-*/
+
         for (String key:globalSettingsMap.keySet()) {
             Object value;
             if (walkSettingsMap.containsKey(key)) {
@@ -189,12 +194,15 @@ public class SettingsActivity extends Activity
             }
         }
         editor.commit();
+
         return currentWalkSettings;
     }
+
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         updateSummary(key);
 //        pref.setSummary(Html.fromHtml("<font color='#145A14'>" +"qq"  + "</font>")); Не ест :(
     }
+
     static void updateSummary(String key) {
         Preference pref = preferenceFragment.findPreference(key);
 

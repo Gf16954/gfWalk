@@ -1,4 +1,4 @@
--1. Попробовать заменить INTENT_ACTION_VIDEO_CAMERA на ACTION_VIDEO_CAPTURE
++1. Попробовать заменить INTENT_ACTION_VIDEO_CAMERA на ACTION_VIDEO_CAPTURE
 -2. В режиме записи не переходит в галерею
 -3. При отключении/включении геолокации просит разрешения
 +4. магнетометр
@@ -10,13 +10,13 @@
 +10. Вращение карты?
 +11. Инфо - склеить начало
 -12. Идущие ноги в самый верх - настройка телефона
-13. update help
+13. update help + privacy policy
 +14. Показ расхода батареи?
 +15. Показать весь маршрут в кнопку
 +16. Выход из записи - back дважды
 +17. Firebase notifications
 +18. Где я в кнопку
-19. Круглая иконка
++19. Круглая иконка
 +20. Меню с птичками
 +21. Каталог Text в каталог приложения
 +22. Update всех настроек во всех activity
@@ -26,6 +26,18 @@
 SD/MIUI/sound_recorder/ or Internal SD card/MIUI/sound_recorder/ ?
 Или убить .nomedia ? Или startActivityForResult? Последнее.
 +24. isOurArtefact переделать
++25. Share артефакт
++26. В галерее медленный переход между картинками, и сама лента спотыкается
+-27. Убрать искажение размеров видео
++28. В оверлай видео и аудио продолжительность
++29. Групповая обработка артефактов
++30. EXIF update
++31. Память
 
 103. Восстановление map toolbar при восстановлении infowindow
-104. Share артефакт
+105. Хвост?
+106. В галерее победить уход в центр в Selection mode
+107. Послать координаты https://habr.com/ru/post/131041/
+108. Победить не работающий Intent.EXTRA_SUBJECT при отправке по почте
+109. Победить уменьшение размера текста в action bar'e в landscape
+https://stackoverflow.com/questions/28042331/android-toolbar-small-title-text-in-landscape-mode

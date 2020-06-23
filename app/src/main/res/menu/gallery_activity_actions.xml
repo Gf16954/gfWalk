@@ -14,6 +14,12 @@
           android:enabled="true"
           android:visible="true"
         />
+    <item android:id="@+id/action_share_af"
+          android:title="@string/action_share_af"
+          res-auto:showAsAction="never"
+          android:enabled="true"
+          android:visible="true"
+        />
     <item android:id="@+id/action_make_walk_icon"
           android:title="@string/action_make_walk_icon"
           res-auto:showAsAction="never"
@@ -25,6 +31,7 @@
           res-auto:showAsAction="never"
           android:enabled="true"
           android:visible="true"
+          android:checkable="true"
         />
     <item android:id="@+id/action_info"
           android:title="@string/action_info"

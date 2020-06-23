@@ -119,8 +119,7 @@ public class Walk {
                 durationNetto = 0;
                 length=lengthNetto=0;
             } else {
-                // duration=pointBefore.duration+time-pointBefore.time;
-                duration=time-startTime;
+                duration=time-startTime;  // До прибытия в точку
                 length=pointBefore.length+Utils.getDistance(
                         Utils.loc2LatLng(location), Utils.loc2LatLng(pointBefore.location));
                 if (flagResume) {
@@ -141,7 +140,9 @@ public class Walk {
                                 (time-pointBefore.time)*1000*3600;  // %/час
             totalStr=formTotalStr(walkSettings,
                     duration, length, durationNetto, lengthNetto,
-                    flagResume ? duration : pointBefore.duration,
+                    flagResume ? duration : pointBefore.duration +
+                            (pointBefore.timeEnd > 0 ? pointBefore.timeEnd : pointBefore.time)
+                            - pointBefore.time,  // Конец пребывания
                     flagResume ? length : pointBefore.length,
                     0,0,
                     Utils.locationFullInfStr(location,
@@ -153,6 +154,7 @@ public class Walk {
                     + (BuildConfig.BUILD_TYPE.equals("debug") ? " "+debugInfo : ""));
             markerTitle=formMarkerTitle();
         }
+
         String formMarkerTitle() {
             return timeStr(time, timeEnd, flagResume)
                 + (walkSettings.getBoolean("map_show_address_in_markers", false) ?
@@ -174,7 +176,7 @@ public class Walk {
 
         String d="\t";
 
-        public AF(Cursor cursor) {
+        AF(Cursor cursor) {
             afId=cursor.getLong(cursor.getColumnIndex(DB.KEY_AFID));
             pointId=cursor.getLong(cursor.getColumnIndex(DB.KEY_AFPOINTID));
             pointNumber=cursor.getInt(cursor.getColumnIndex(DB.KEY_AFPOINTNUMBER));
@@ -185,7 +187,8 @@ public class Walk {
             comment=cursor.getString(cursor.getColumnIndex(DB.KEY_AFCOMMENT));
             deleted=cursor.getInt(cursor.getColumnIndex(DB.KEY_AFDELETED))==1;
         }
-        public AF(String parcel) {
+
+        AF(String parcel) {
             String[] af=parcel.split(d);
             afId=Long.parseLong(af[0]);
             pointId=Long.parseLong(af[1]);
@@ -197,11 +200,13 @@ public class Walk {
             comment=af[7];
             deleted=Boolean.parseBoolean(af[8]);
         }
+
         @Override
         public String toString() {
             return ""+afId+d+pointId+d+pointNumber+d+time+d+kind+d+uri+d+filePath+d+comment+d+deleted;
         }
     }
+
     ArrayList<AF> AFs = new ArrayList<>();
 
     Walk(MapActivity mapActivity) {
@@ -209,10 +214,6 @@ public class Walk {
         this.walkId = mapActivity.walkId;
         this.map = mapActivity.map;
         walkSettings=mapActivity.walkSettings;
-
-//        for (int i=0; i<lastMarkers.size(); i++) {
-//            lastMarkers.set(i,null);
-//        }
 
         for (int i=0; i<lastMarkers.capacity(); i++) {
             lastMarkers.add(null);
@@ -309,13 +310,7 @@ public class Walk {
     void loadAndDraw(final boolean isFirstCall) {  // Загружаем и рисуем появившиеся в базе точки
         String threadName="gfLoadAndDraw #" + points.size();
         Utils.logD(TAG, "Thread "+threadName+" is starting...");
-        new Thread(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        loadAndDraw2(isFirstCall);
-                    }
-                },threadName).start();
+        new Thread(() -> {loadAndDraw2(isFirstCall);}, threadName).start();
     }
 
     synchronized private void loadAndDraw2(boolean isFirstCall) {  // isFirstCall - первый вызов из MapActivity
@@ -366,7 +361,7 @@ public class Walk {
                                 values.clear();
                                 values.put(DB.KEY_STARTPLACE, point.address);
                                 DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID + "=" + walkId, null);
-                                MainActivity.pleaseDo=MainActivity.pleaseDo+" refresh selected item";
+                                MainActivity.pleaseDo=MainActivity.pleaseDo + " refresh selected item";
                             }
                         }
                     }
@@ -402,7 +397,8 @@ public class Walk {
             drawOnePoint(k, k==lastPointInd, k==points.size()-1);
 
             if (mapActivity.mode==MapActivity.MODE_RESUME && // Первую НОВУЮ точку нарисовали - оживляем Map
-                    points.get(k).flagResume && points.get(k).time>=WalkRecorder.curSessionStartTime) {
+//                    points.get(k).flagResume && points.get(k).time>=WalkRecorder.curSessionStartTime) {
+                    points.get(k).flagResume && !isFirstCall) {
                 mapActivity.runOnUiThread(new Runnable() {
                     public void run() {
                         mapActivity.enterActiveMode();
@@ -419,8 +415,9 @@ public class Walk {
         }
         Utils.logD(TAG, "loadAndDraw2 ended");
     }
-    void drawOnePoint(int iPoint, boolean isLastOld, boolean isLastNew) {
-        Utils.logD(TAG, "A point is  beeing drawn: #"+iPoint);
+
+    private void drawOnePoint(int iPoint, boolean isLastOld, boolean isLastNew) {
+        Utils.logD(TAG, "A point is beeing drawn: #"+iPoint);
 
         int lastAFInd = AFs.size()-1;
         String s = "";
@@ -466,7 +463,8 @@ public class Walk {
         drawOnePoint2(points.get(iPoint), prevPoint, isLastNew, isLastOld,
                 dontRedrawAFMarkers,isWithAFs);
     }
-    void drawOnePoint2(final Point point, final Point prevPoint,
+
+    private void drawOnePoint2(final Point point, final Point prevPoint,
                        final boolean isLastNew, final boolean isLastOld,
                        boolean dontRedrawAFMarkers, boolean isWithAFs) {
         // Маркер ПРЕДЫДУЩЕЙ ПО МАРШРУТУ точки - если последнюю рисуем впервые (не перерисовываем)
@@ -530,7 +528,8 @@ public class Walk {
             drawAFMarkers(point);
         }
     }
-    int getLineColor(Point point) {
+
+    private int getLineColor(Point point) {
         if (point.flagResume) return mapActivity.getResources().getColor(R.color.line_pause);
 
         switch (point.activityType) {
@@ -546,22 +545,24 @@ public class Walk {
 
         return mapActivity.getResources().getColor(R.color.line_unknown);
     }
-    List<PatternItem> getLinePattern(Point point) {
+
+    private List<PatternItem> getLinePattern(Point point) {
 //        PatternItem[] patterns={new Dot()};
         int w=Utils.dpyToPx(mapActivity.getResources().getInteger(R.integer.line_width));
         PatternItem[] patterns={new Dash(w*2), new Gap(w)};
         return point.flagResume ? Arrays.asList(patterns) : null;
     }
 
-    void drawAFMarkers(Point point) {
+    private void drawAFMarkers(Point point) {
         for (int markerKind=AFKIND_MIN; markerKind<=AFKIND_MAX; markerKind++) {
             drawAFMarkers2(point, markerKind, false);
         }
     }
+
     void drawAFMarkers2(final Point point, int markerKind, boolean clearIfEmpty) {
         final int markerIndex=markerKind-AFKIND_MIN;
 
-        int numberOfAFs=0, numberOfAFs2=0;
+        int numberOfAFs=0;
         String uri=null, filePath=null;
         for (int i=AFs.size()-1; i>=0; i--) {  // Берем первый артефакт
             if (AFs.get(i).pointId>point.pointId) {
@@ -576,23 +577,16 @@ public class Walk {
                 ContentValues values=new ContentValues();
                 values.put(DB.KEY_AFDELETED, true);
                 DB.db.update(DB.TABLE_AFS, values, DB.KEY_AFID+"="+AFs.get(i).afId, null);
-                MainActivity.pleaseDo=MainActivity.pleaseDo+" refresh selected item";
+                MainActivity.pleaseDo=MainActivity.pleaseDo + " refresh selected item";
                 continue;
             }
             if (AFs.get(i).kind==markerKind) {
-                numberOfAFs2++;
-/* Уже проверили
-                if (AFs.get(i).filePath==null ||
-                        new File(AFs.get(i).filePath).exists()) { // А вдруг удалили ?
-*/
-                if (true) {
-                    numberOfAFs++;
-                    uri=AFs.get(i).uri;
-                    filePath=AFs.get(i).filePath;
-                }
+                numberOfAFs++;
+                uri=AFs.get(i).uri;
+                filePath=AFs.get(i).filePath;
             }
         }
-        if (numberOfAFs2>0) {
+        if (numberOfAFs>0) {
             MyMarker.drawMarker(map,
                     point.markers,
                     markerIndex,
@@ -601,9 +595,7 @@ public class Walk {
                     point.markerTitle,
                     point.totalStr,
                     uri, filePath,
-                    numberOfAFs == 0 ?
-                            mapActivity.getResources().getString(R.string.af_has_gone) :
-                            numberOfAFs == 1 ? null : "" + numberOfAFs,
+                    numberOfAFs == 1 ? null : "" + numberOfAFs,
                     -1, 0, true, true);
         } else if (clearIfEmpty && point.markers.get(markerIndex)!=null) {
             MyMarker.killMarker(point.markers,markerIndex);
@@ -624,12 +616,14 @@ public class Walk {
                 tail);
     }
 
-    static String formTotalStr(boolean showDetailsInMarkers, boolean showNettoVauesInMarkers,
+    private static String formTotalStr(boolean showDetailsInMarkers, boolean showNettoVauesInMarkers,
                                long duration, float length,
                                long durationNetto, float lengthNetto,
                                long durationPointBefore, float lengthPointBefore,
                                long durationPointBeforeNetto, float lengthPointBeforeNetto,
                                String tail) {
+        Utils.logD(TAG, "formTotalStr: " + duration + " " + length + " " + durationPointBefore + " " + lengthPointBeforeNetto);
+
         String s=Utils.durationStr(duration, showNettoVauesInMarkers ? durationNetto : 0)
                 +" "+Utils.lengthStr(length, showNettoVauesInMarkers ? lengthNetto : 0);
         if (duration!=durationPointBefore) {
@@ -642,7 +636,8 @@ public class Walk {
         }
         return s;
     }
-    public String timeStr(long milliSeconds, long milliSeconds2, boolean withFirstDate) {
+
+    private String timeStr(long milliSeconds, long milliSeconds2, boolean withFirstDate) {
         String s=timeFormat.format(new Date(milliSeconds));
         if (milliSeconds2>0) {
             String s2=timeFormat.format(new Date(milliSeconds2));

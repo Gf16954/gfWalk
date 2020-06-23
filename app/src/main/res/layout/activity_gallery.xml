@@ -12,16 +12,16 @@
         android:spacing="0dp"
         />
     <ImageView
-        android:id="@+id/imageviewPicture"
+        android:id="@+id/imageviewBigPicture"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/gallerySnapshotList"
-        android:layout_marginTop="8dp"
+        android:layout_below="@id/markedItemsCount"
+        android:layout_marginTop="0dp"
         android:layout_marginBottom="8dp"
         android:adjustViewBounds="true"
         android:src="@drawable/ic_action_to_bin"
         />
-    <!-- Заголовок - время и адрес -->
     <TextView
         android:id="@+id/textviewText"
         android:layout_width="match_parent"
@@ -46,15 +46,27 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_above="@id/gallerySnapshotList"
+        android:layout_marginTop="0dp"
         android:layout_marginBottom="0dp"
         android:inputType="textMultiLine"
         android:paddingBottom="10dp"
         android:textSize="@dimen/textSize2"
         android:shadowColor="#FFFFFF"
-        android:shadowDx="1"
+        android:shadowDx="2"
         android:shadowDy="1"
-        android:shadowRadius="1"
-        android:hint="@string/walk_comment"
+        android:shadowRadius="2"
         />
-<!--    android:hint=" &#63;                 " -->
+    <!--android:hint="@string/walk_comment" -->
+    <!--    android:hint=" &#63;                 " -->
+
+    <TextView
+        android:id="@+id/markedItemsCount"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="0dp"
+        android:layout_marginBottom="0dp"
+        android:layout_marginStart="10dp"
+        android:textSize="@dimen/textSize2"
+        android:visibility="gone"
+        />
 </RelativeLayout>

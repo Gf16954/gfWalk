@@ -8,7 +8,9 @@ import android.os.Bundle;
 import android.text.Html;
 import android.widget.TextView;
 
-public class HelpActivity extends Activity {
+import androidx.appcompat.app.AppCompatActivity;
+
+public class HelpActivity extends AppCompatActivity {
     static final String TAG = "gfHelpActivity";
 
     String s;
@@ -17,10 +19,6 @@ public class HelpActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         Utils.logD(TAG, "onCreate");
         super.onCreate(savedInstanceState);
-
-//        AirbrakeNotifier.register(this,
-//                "f17762b5ea71e1af3bcf37ba0cb2a67c",
-//                "", false);
 
         setContentView(R.layout.activity_help);
         setTitle(getResources().getString(R.string.app_name)+

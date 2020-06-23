@@ -40,7 +40,7 @@
     <item android:id="@+id/action_resume"
         android:title="@string/action_resume"
         res-auto:showAsAction="always"
-        android:icon="@drawable/ic_action_play"
+        android:icon="@drawable/ic_action_walk_resume"
         android:enabled="true"
         android:visible="false"
         />

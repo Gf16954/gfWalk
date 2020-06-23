@@ -1,5 +1,6 @@
 package com.gf169.gfwalk;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Application;
 import android.app.Dialog;
@@ -68,6 +69,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static androidx.core.content.FileProvider.getUriForFile;
 
 public class MapActivity extends AppCompatActivity implements
         OnMapReadyCallback,GoogleMap.OnMapLongClickListener,
@@ -245,23 +248,21 @@ public class MapActivity extends AppCompatActivity implements
                 savedInstanceState.getBoolean("whereAmIIsOn"); // Показывать текущее положение
 
         setContentView(R.layout.activity_map);
+
         ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                 .getMapAsync(this);
         findViewById(R.id.map_curtain).setOnTouchListener( // Для блокирования touch events во время анимации
                 (view, event) -> {return animationIsRunning.get();}); // false - pass on the touch to the map or shadow layer.
+
+        if (mode == MODE_RESUME) {
+            enterResumeMode();  // Начинаем запись прогулки
+        }
     }
 
     @Override
     protected void onPause() {
         Utils.logD(TAG, "onPause " + this);
         super.onPause();
-
-/*
-        // Запоминаем, может, собрались в настройку
-        showAddressInMarkers = walkSettings.getBoolean("map_show_address_in_markers", false);
-        showDetailsInMarkers = walkSettings.getBoolean("map_show_details_in_markers", false);
-        showNettoVauesInMarkers = walkSettings.getBoolean("map_show_netto_values_in_markers", false);
-*/
 
         mapIsVisible = false;
 
@@ -329,7 +330,7 @@ public class MapActivity extends AppCompatActivity implements
 
     @Override
     protected void onResume() {
-        Utils.logD(TAG, "onResume " + this + lastAction);
+        Utils.logD(TAG, "onResume " + this + " " + lastAction);
         super.onResume();
 
         if (lastAction == R.id.action_photo) {
@@ -341,24 +342,10 @@ public class MapActivity extends AppCompatActivity implements
         }
         lastAction = 0;
 
-        // Возможно, ходили в настройку, поменяли
         minPossibleSpeed = Float.parseFloat(walkSettings.getString("map_min_possible_speed", "2.4"));
-        int i = currentLocationRequestInterval;
-        currentLocationRequestInterval=
-                Integer.parseInt(walkSettings.getString("map_current_location_request_interval", "3"));
-        if (i!=currentLocationRequestInterval && googleApiClient!=null) {
-            requestLocationUpdates();
-        }
+//        currentLocationRequestInterval = // Убрал из настроек
+//                Integer.parseInt(walkSettings.getString("map_current_location_request_interval", "1"));
         cursorPulsationsPerSecond = Float.parseFloat(walkSettings.getString("map_cursor_pulsations_per_second", "1"));
-
-/*
-        if (showAddressInMarkers != null && (
-                showAddressInMarkers != walkSettings.getBoolean("map_show_address_in_markers", false) ||
-                showDetailsInMarkers != walkSettings.getBoolean("map_show_details_in_markers", false) ||
-                showNettoVauesInMarkers != walkSettings.getBoolean("map_show_netto_values_in_markers", false))) {
-            recreate();  // Чтобы сразу подействовали изменения
-        }
-*/
 
         mapIsVisible = true;
 
@@ -388,7 +375,7 @@ public class MapActivity extends AppCompatActivity implements
             @Override
             public View getInfoWindow(Marker marker) {
                 LayoutInflater inflater = LayoutInflater.from(getApplicationContext());
-                View view = inflater.inflate(R.layout.map_infowindow, null, false);
+                View view = inflater.inflate(R.layout.infowindow_map, null, false);
                 ((TextView) view.findViewById(R.id.marker_title)).setText(marker.getTitle());
                 ((TextView) view.findViewById(R.id.marker_snippet)).setText(marker.getSnippet());
 
@@ -416,7 +403,7 @@ loading due to the user constantly interacting with the map.
         addButtons();
 
         if (mode == MODE_RESUME) {
-            enterResumeMode();  // Начинаем запись прогулки
+//            enterResumeMode();  // Начинаем запись прогулки
         }
 
         walk.mapIsLoaded = true; // Просто понимаем флаг - loadAndDraw увидит и вернет сюда просьбу установить zoom
@@ -427,6 +414,7 @@ loading due to the user constantly interacting with the map.
         // Вызывается после onStop
         Utils.logD(TAG, "onSaveInstanceState");
         super.onSaveInstanceState(savedInstanceState);
+
         savedInstanceState.putInt("walkId", walkId);
         savedInstanceState.putInt("mode", mode);
         savedInstanceState.putInt("modeInitial", modeInitial);
@@ -451,6 +439,8 @@ loading due to the user constantly interacting with the map.
         savedInstanceState.putBoolean("whereAmIIsOn", whereAmIIsOn);
         savedInstanceState.putBoolean("liveMapIsOn", liveMapIsOn);
         savedInstanceState.putBoolean("returnIfHasGone", returnIfHasGone);
+
+        Utils.logD(TAG, "onSaveInstanceState ended");
     }
 
     @Override
@@ -514,7 +504,6 @@ loading due to the user constantly interacting with the map.
             case R.id.action_show_accuracy_circle:
                 showAccuracyCircle = !showAccuracyCircle;
                 drawAccuracyCircle();
-//                updateOptionsMenu();
                 item.setChecked(showAccuracyCircle);
                 return true;
             case R.id.action_map_type_satelite:
@@ -568,7 +557,10 @@ loading due to the user constantly interacting with the map.
                     File file = new File(textFilePath);
                     if (file.exists() && file.length() > 0) {
                         Utils.logD(TAG, "Text file " + textFilePath + " is written");
-                        addPoint(Walk.AFKIND_TEXT, Uri.parse("file://" + textFilePath), textFilePath,
+                        // addPoint(Walk.AFKIND_TEXT, Uri.parse("file://" + textFilePath), textFilePath,
+                        Uri contentUri = getUriForFile(this,
+                                BuildConfig.APPLICATION_ID + ".fileProvider", file);
+                        addPoint(Walk.AFKIND_TEXT, contentUri, textFilePath,
                                 "onActivityResult WRITE_TEXT_REQUEST_CODE", false);
                     } else {
                         file.delete();
@@ -636,8 +628,10 @@ loading due to the user constantly interacting with the map.
     }
 
     private boolean requestDoubleClick() {
-        int dt=500;  // Интервал двойного тюка
-        if (lastBackPressedTime == 0 || System.currentTimeMillis() - lastBackPressedTime > dt) {
+        Utils.logD(TAG, "requestDoubleClick " + System.currentTimeMillis() + " " + lastBackPressedTime);
+
+        int dt = Utils.isEmulator() ? 2000 : 500;  // Интервал двойного тюка
+        if (System.currentTimeMillis() - lastBackPressedTime > dt) {
             (handler=new Handler(Looper.getMainLooper())).postDelayed(() -> {
                 if (!isFinishing())
                     Toast.makeText(this, getResources().getString(R.string.press_back_once_more),
@@ -681,6 +675,9 @@ loading due to the user constantly interacting with the map.
 
     void enterResumeMode() { // До момента нарисования первой новой точки
         Utils.logD(TAG, "enterResumeMode");
+
+        WalkRecorder.switchLogcatRecorder(true, walkSettings, this);
+        WalkRecorder.switchDevelopersLog(true, walkSettings);
 
         mode = MODE_RESUME;
         switchWhereAmI(true, false);
@@ -729,6 +726,9 @@ loading due to the user constantly interacting with the map.
             Toast.makeText(MapActivity.this, getResources().getString(R.string.walk_recording_ended),
                     Toast.LENGTH_SHORT).show();
         }
+
+        WalkRecorder.switchLogcatRecorder(false, walkSettings, this);
+        WalkRecorder.switchDevelopersLog(false, walkSettings);
     }
 
     private void updateOptionsMenu() {
@@ -773,7 +773,6 @@ loading due to the user constantly interacting with the map.
 
         Intent intent = new Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION);
         PackageManager pm = this.getPackageManager();
-        final ResolveInfo mInfo = pm.resolveActivity(intent, 0);
         try {
             if ("xiaomi".equals(Build.BRAND) &&  // Не регистрирует файлы в Content provider'e - сами регистрируем
                     "com.android.soundrecorder.SoundRecorder".equals(  // И не дает себя заменить, так что это на всякий случай
@@ -821,7 +820,7 @@ loading due to the user constantly interacting with the map.
     void actionVideo() {
         Utils.logD(TAG, "actionVideo");
 
-        Intent intent = new Intent(MediaStore.INTENT_ACTION_VIDEO_CAMERA); // Так и только так !
+        Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE); // Так и только так !
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // Чтобы забыла про камеру
         startActivity(intent);
         addPoint(0, null, null, "startActivity INTENT_ACTION_VIDEO_CAMERA", false);
@@ -833,17 +832,7 @@ loading due to the user constantly interacting with the map.
             String afFilePath,
             String debugInfo,
             boolean isLastPoint) {
-/*
-        Intent intent = new Intent(this, WalkRecorder.class)
-                .putExtra("walkId", walkId)
-                .putExtra("location", curLocation)
-                .putExtra("debugInfo", debugInfo).putExtra("isLastPoint", isLastPoint);
-        if (afKind > 0) {
-            intent.putExtra("afKind", afKind)
-                .putExtra("afUri", afUri.toString()).putExtra("afFilePath", afFilePath);
-        }
-        startService(intent);
-*/
+
         WalkRecorder.self.addPoint(curLocation, debugInfo, afKind,
                 afUri == null ? null : afUri.toString(), afFilePath, isLastPoint);
     }
@@ -971,6 +960,8 @@ loading due to the user constantly interacting with the map.
 
                     break;
                 case "finish":  // from Gallery when pressed Up
+                    if (mode == MODE_ACTIVE) return;
+
                     finish();
                     Intent intent2 = new Intent(context, MainActivity.class);  // В некотрых случаях вываливается в рабочий стол
 
@@ -990,22 +981,19 @@ loading due to the user constantly interacting with the map.
     };
 
     void setZoomAndFocus() {  // Несколько вызовов, выполняется только первый
-        Utils.logD(TAG, "setZoomAndFocus " + zoomAndFocusAreSet);
+        Utils.logD(TAG, "setZoomAndFocus start " + zoomAndFocusAreSet);
 
         if (zoomAndFocusAreSet || !walk.mapIsLoaded) return;
 
-        int iRes = 0;
         if (curLocation != null) {
-            iRes = 1;
             animateCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition(
                     Utils.loc2LatLng(curLocation), zoom0, 0, 0)));
         } else if (walk.points.size() > 0) {
             showEntireRoute();
-            iRes = 2;
+            zoomAndFocusAreSet = true;
         }
-        zoomAndFocusAreSet = iRes>0;
 
-        Utils.logD(TAG, "setZoomAndFocus " + iRes);
+        Utils.logD(TAG, "setZoomAndFocus stop " + zoomAndFocusAreSet);
     }
 
     void drawPointInGalleryMarker(int afInGalleryNumber) {
@@ -1047,18 +1035,20 @@ loading due to the user constantly interacting with the map.
     void updateFromGallery(Intent intent) {
         Utils.logD(TAG, "updateFromGallery");
 
-        final int deletedAFInGalleryNumber = intent.getIntExtra("deletedAFInGalleryNumber", -1);
-        if (deletedAFInGalleryNumber >= 0) {
-            walk.AFs.get(deletedAFInGalleryNumber).deleted = true;
-            new Thread(
-                    new Runnable() {
-                        public void run() {
-                            int i = walk.AFs.get(deletedAFInGalleryNumber).pointNumber;
-                            walk.drawAFMarkers2(
-                                    walk.points.get(i),
-                                    walk.AFs.get(deletedAFInGalleryNumber).kind, true);
-                        }
-                    }, "gfDrawAFMarkers").start();
+        final String deletedAFNumbers = intent.getStringExtra("deletedAFNumbers");
+        final String deletedAFPointNumbers = intent.getStringExtra("deletedAFPointNumbers");
+        if (deletedAFPointNumbers != null) {
+            new Thread(() -> {
+                for (String s : deletedAFNumbers.split(" ")) {
+                    int afNumber = Integer.parseInt(s);
+                    walk.AFs.get(afNumber).deleted = true;  // В базе в галерее установили
+                }
+                for (String s : deletedAFPointNumbers.split(" ")) {
+                    int pointNumber = Integer.parseInt(s.split(":")[0]);
+                    int afKind = Integer.parseInt(s.split(":")[1]);
+                    walk.drawAFMarkers2(walk.points.get(pointNumber), afKind, true);
+                }
+            }, "gfDrawAFMarkers").start();
         }
         int i = afInGalleryNumber;  // Точку в галерее в центр
         i = i >= 0 && i < walk.AFs.size() ? walk.AFs.get(i).pointNumber : -1;
@@ -1237,7 +1227,7 @@ loading due to the user constantly interacting with the map.
                                     animationIsRunning.set(false);
                                     animateCameraWaitingThreads.set(
                                             animateCameraWaitingThreads.indexOf(thread[0]), null);
-//                                    zoomAndFocusAreSet = true;
+                                    zoomAndFocusAreSet = true;
                                 }
 
                                 @Override
@@ -1383,15 +1373,20 @@ loading due to the user constantly interacting with the map.
             }
         }
 
-        if (curActivity.mode == MODE_ACTIVE) {
+        if (WalkRecorder.self != null && WalkRecorder.self.locationServiceIsReady) {
             Intent intent = new Intent(curActivity.getApplicationContext(), WalkRecorder.class);
             intent.putExtra("speedFromMap", location.getSpeed());
             curActivity.startService(intent);
         }
     }
 
+    @SuppressLint("MissingPermission")
     private void requestLocationUpdates() {
         LocationRequest locationRequest = LocationRequest.create();
+        if (currentLocationRequestInterval <= 0) {
+            currentLocationRequestInterval =
+                    Integer.parseInt(walkSettings.getString("map_current_location_request_interval", "1"));
+        }
         locationRequest.setInterval(currentLocationRequestInterval * 1000);
         locationRequest.setFastestInterval(currentLocationRequestInterval * 1000);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -1441,30 +1436,30 @@ loading due to the user constantly interacting with the map.
     void addToMediaProvider(File file) {
         Utils.logD(TAG, "addToMediaProvider " + file.getAbsolutePath());
 
-//        String file2Path =  Utils.createDirIfNotExists(getFilesDir().getAbsolutePath(),
-        String file2Path =  Utils.createDirIfNotExists(getExternalFilesDir(null).getAbsolutePath(),
+//        String copyPath =  Utils.createDirIfNotExists(getFilesDir().getAbsolutePath(),
+        String copyPath =  Utils.createDirIfNotExists(getExternalFilesDir(null).getAbsolutePath(),
                 DIR_AUDIO) +  // Именно External, иначе снаружи не увидят - FileNotFoundException
                 "/" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) +
                 "." + Utils.getFileExtension(file.getName());
 // Internal - /data/data/com.gf169.gfwalk.debug/files/Audio/20200528_223728.mp3
 // External - /storage/emulated/0/Android/data/com.gf169.gfwalk.debug/files/Audio/20200529_151339.mp3
-//            /storage/emulated/0 = /sdcard - link
-        File file2 = Utils.copyFile(file.getAbsolutePath(), file2Path);
+//            /storage/emulated/0 (сюда adb не пускает) = /sdcard - (link, пускает)
+        File file2 = Utils.copyFile(file.getAbsolutePath(), copyPath);
         if (file2 == null) {
             Toast.makeText(
-                    this, "Failed to copy " + file.getAbsolutePath() + " into " + file2Path,
+                    this, "Failed to copy " + file.getAbsolutePath() + " into " + copyPath,
                     Toast.LENGTH_LONG)
                     .show();
             return;
         }
-//        file.setReadable(true, false); // И так читается
+//        file2.setReadable(true, false); // И так читается
 
         ContentValues values = new ContentValues(1);
 //        values.put(MediaStore.Audio.Media.DATA, file.getAbsolutePath()) ;  // Не видит!
-        values.put(MediaStore.Audio.Media.DATA, file2Path) ;
+        values.put(MediaStore.Audio.Media.DATA, copyPath) ; // Audio
         Uri uri = getContentResolver().insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values);
         if (uri == null) {
-            Toast.makeText(this, "Failed to insert " + file2Path + " into MediaStore",
+            Toast.makeText(this, "Failed to insert " + copyPath + " into MediaStore",
                     Toast.LENGTH_LONG).show();
         }
     }
