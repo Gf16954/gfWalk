@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:theme="@style/DialogFragmentTheme"
-    >
+    android:theme="@style/DialogFragmentTheme">
     <TextView
         android:id="@+id/textViewTitle"
         android:layout_width="match_parent"
@@ -106,7 +104,6 @@
                 android:layout_alignParentEnd="true"
                 android:layout_alignParentRight="true"
                 android:paddingRight="@dimen/walkinfo_paddingHor1"
-                android:textColor="@color/walkinfo_color1"
                 android:textStyle="bold"
                 android:text="88"/>
 

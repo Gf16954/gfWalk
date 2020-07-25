@@ -15,6 +15,7 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -64,8 +65,15 @@ public class MainActivity extends AppCompatActivity {
 
     SharedPreferences globalSettings;
 
+    int selectedItemBackground;
+    int normalItemBackground;
+
     protected void onCreate(Bundle savedInstanceState) {
-        Utils.logD(TAG, "onCreate " + this);
+        Utils.logD(TAG, "onCreate " + this + " DisplayMetrics.density " + getResources().getDisplayMetrics());
+
+        globalSettings=SettingsActivity.getCurrentWalkSettings(this, -1);
+        setTheme(getThemeX(globalSettings));
+
         super.onCreate(savedInstanceState);
 
         MyMarker.curActivity=this;
@@ -81,7 +89,13 @@ public class MainActivity extends AppCompatActivity {
             firstVisiblePos=savedInstanceState.getInt("firstVisiblePos");
         }
 
-        globalSettings=SettingsActivity.getCurrentWalkSettings(this, -1);
+        TypedValue value = new TypedValue();
+        getTheme().resolveAttribute(R.attr.myNormalBackground, value, true);
+//        normalItemBackground = getResources().getColor(value.resourceId);
+        normalItemBackground = value.data;    // !!!
+        getTheme().resolveAttribute(R.attr.mySelectedBackground, value, true);
+//        selectedItemBackground = getResources().getColor(value.resourceId);
+        selectedItemBackground = value.data;
 
         Utils.grantMeAllDangerousPermissions(this);
         DB.dbInit(this);
@@ -109,6 +123,17 @@ public class MainActivity extends AppCompatActivity {
             savedInstanceState.putInt("walkId", walkId);
             savedInstanceState.putInt("selectedPos", selectedPos);
             savedInstanceState.putInt("firstVisiblePos", firstVisiblePos);
+    }
+
+    static int getThemeX(SharedPreferences settings) {
+        String skinColor = settings.getString("misc_skin_color", "Green");
+        switch (skinColor) {
+            case "Violet":
+                return R.style.AppThemeViolet;
+            case "Blue":
+                return R.style.AppThemeBlue;
+        }
+        return R.style.AppThemeGreen;
     }
 
     void makeWalklist() {
@@ -206,10 +231,10 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                     if (s.equals(formDesc(cursor))) {
-                        ((TextView) view).setTextColor(getResources().getColor(R.color.fragment_textColor));
+//                        ((TextView) view).setTextColor(getResources().getColor(R.color.fragment_textColor));
                         ((TextView) view).setTypeface(null, Typeface.NORMAL);;
                     } else {
-                        ((TextView) view).setTextColor(getResources().getColor(R.color.fragment_textColor2));
+//                        ((TextView) view).setTextColor(getResources().getColor(R.color.fragment_textColor2));
                         ((TextView) view).setTypeface(null, Typeface.BOLD);;
                     }
                     ((TextView) view).setText(s);
@@ -261,8 +286,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void paintItem(View view, boolean isSelected) {
-        int color=getResources().getColor(isSelected ?
-                R.color.selectedBackground : R.color.normalBackground);
+        int color = isSelected ? selectedItemBackground : normalItemBackground;
         color=view.getTag(R.id.tag_walkIsDeleted)!=null ?  // А это по tag'у !
                 color - getResources().getColor(R.color.deletedDelta) : color; // Все темнее
         view.setBackgroundTintMode(null);  // Очищает tint из theme, иначе не перекрашивается
@@ -353,8 +377,10 @@ public class MainActivity extends AppCompatActivity {
 
         super.onResume();
 
-        if (!pleaseDo.equals("")) {
+        if (!pleaseDo.equals("")) {  // Вернулись из MapActivity или GalleryActivity
             doAfterReturn();
+        } else {  // Возможно, вернулись из SettingsActivity
+            Utils.restartActivityIfFlagIsRaised(this);
         }
     }
 

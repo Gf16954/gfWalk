@@ -113,8 +113,8 @@ public class Compas implements SensorEventListener {
             // the application receives an update before the system checks the sensor
             // readings again.
             if (isTurnedOn) return true;
-            mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-            mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_NORMAL);
+            mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_UI);
+            mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_UI);
             isTurnedOn=true;
         } else {
             if (!isTurnedOn) return true;

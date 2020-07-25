@@ -1,10 +1,13 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:key="root_preferences">
 
     <PreferenceCategory
         android:key="recording_settings"
         android:title="@string/title_recording_settings"
-        android:persistent="true">
+        android:persistent="true"
+        app:iconSpaceReserved="false"
+        >
         <EditTextPreference
             android:key="recording_max_seconds_between_points"
             android:title="@string/title_recording_max_seconds_between_points"
@@ -12,7 +15,8 @@
             android:numeric="integer"
             android:maxLength="3"
             android:defaultValue="60"
-        		/>
+            app:iconSpaceReserved="false"
+            />
         <EditTextPreference
             android:key="recording_min_meters_between_points"
             android:title="@string/title_recording_min_meters_between_points"
@@ -20,7 +24,8 @@
             android:numeric="integer"
             android:maxLength="3"
             android:defaultValue="10"
-        		/>
+            app:iconSpaceReserved="false"
+      		/>
         <EditTextPreference
             android:key="recording_min_location_accuracy"
             android:title="@string/title_recording_min_location_accuracy"
@@ -28,7 +33,8 @@
             android:numeric="integer"
             android:maxLength="3"
             android:defaultValue="50"
-        		/>
+            app:iconSpaceReserved="false"
+       		/>
         <EditTextPreference
             android:key="recording_max_possible_speed"
             android:title="@string/title_recording_max_possible_speed"
@@ -36,12 +42,16 @@
             android:numeric="integer"
             android:maxLength="4"
             android:defaultValue="250"
+            app:iconSpaceReserved="false"
             />
     </PreferenceCategory>
+
     <PreferenceCategory
         android:key="map_settings"
         android:title="@string/title_map_settings"
-        android:persistent="true">
+        android:persistent="true"
+        app:iconSpaceReserved="false"
+        >
 <!--
         <EditTextPreference
             android:key="map_current_location_request_interval"
@@ -59,38 +69,46 @@
             android:inputType="numberDecimal"
             android:maxLength="4"
             android:defaultValue="2.4"
+            app:iconSpaceReserved="false"
             />
         <EditTextPreference
             android:key="map_cursor_pulsations_per_second"
             android:title="@string/title_map_cursor_pulsations_per_second"
             android:summary="@string/summary_map_cursor_pulsations_per_second"
             android:inputType="numberDecimal"
-            android:maxLength="3"
-            android:defaultValue="1"
+            android:maxLength="4"
+            android:defaultValue="0.5"
+            app:iconSpaceReserved="false"
             />
         <CheckBoxPreference
             android:key="map_show_address_in_markers"
             android:title="@string/title_map_show_address_in_markers"
             android:summary="@string/summary_map_show_address_in_markers"
             android:defaultValue="true"
-        		/>
+            app:iconSpaceReserved="false"
+       		/>
         <CheckBoxPreference
             android:key="map_show_details_in_markers"
             android:title="@string/title_map_show_details_in_markers"
             android:summary="@string/summary_map_show_details_in_markers"
             android:defaultValue="false"
-        		/>
+            app:iconSpaceReserved="false"
+       		/>
         <CheckBoxPreference
             android:key="map_show_netto_values_in_markers"
             android:title="@string/title_map_show_netto_values_in_markers"
             android:summary="@string/summary_map_show_netto_values_in_markers"
             android:defaultValue="false"
-        		/>
+            app:iconSpaceReserved="false"
+       		/>
     </PreferenceCategory>
+
     <PreferenceCategory
         android:key="gallery_settings"
         android:title="@string/title_gallery_settings"
-        android:persistent="true">
+        android:persistent="true"
+        app:iconSpaceReserved="false"
+        >
         <EditTextPreference
             android:key="gallery_ribbon_height"
             android:title="@string/title_gallery_ribbon_height"
@@ -98,31 +116,56 @@
             android:numeric="integer"
             android:maxLength="2"
             android:defaultValue="10"
-        		/>
+            app:iconSpaceReserved="false"
+       		/>
     </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="misc_settings"
+        android:title="@string/title_misc_settings"
+        android:persistent="true"
+        app:iconSpaceReserved="false"
+        >
+        <ListPreference
+            android:key="misc_skin_color"
+            android:title="@string/title_misc_skin_color"
+            android:defaultValue="Green"
+            android:summary="@string/summary_misc_skin_color"
+            android:entries="@array/skin_color_names_array"
+            android:entryValues="@array/skin_color_values_array"
+            app:iconSpaceReserved="false"
+       		/>
+    </PreferenceCategory>
+
     <PreferenceCategory
         android:key="developer_options"
         android:title="Developer options"
-        android:persistent="true">
+        android:persistent="true"
+        app:iconSpaceReserved="false"
+        >
         <EditTextPreference
             android:key="developer_devices"
             android:title="Developer devices"
             android:summary="ANDROID_IDs, space delimited"
-        		/>
+            app:iconSpaceReserved="false"
+       		/>
         <EditTextPreference
             android:key="developer_logcat_recorder_application"
             android:title="Logcat recorder application"
             android:summary="Package name"
-        		/>
+            app:iconSpaceReserved="false"
+       		/>
         <CheckBoxPreference
             android:key="developer_start_logcat_recorder_application"
             android:title="Start logcat recorder application"
             android:defaultValue="false"
+            app:iconSpaceReserved="false"
             />
         <CheckBoxPreference
             android:key="developer_write_developers_log"
             android:title="Write developer's log"
             android:defaultValue="false"
+            app:iconSpaceReserved="false"
             />
     </PreferenceCategory>
 </PreferenceScreen>

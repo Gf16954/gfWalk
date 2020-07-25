@@ -4,6 +4,7 @@
 package com.gf169.gfwalk;
 
 import android.app.Activity;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.Html;
 import android.widget.TextView;
@@ -18,6 +19,9 @@ public class HelpActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Utils.logD(TAG, "onCreate");
+
+        SharedPreferences globalSettings = SettingsActivity.getCurrentWalkSettings(this, -1);
+        setTheme(MainActivity.getThemeX(globalSettings));
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_help);

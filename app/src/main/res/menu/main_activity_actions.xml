@@ -1,36 +1,31 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
       xmlns:res-auto="http://schemas.android.com/apk/res-auto"
-      xmlns:app="http://schemas.android.com/tools">
+    >
     <!-- Требует app:showAsAction вместо android:showAsAction, но кнопки тогда не появляются -->
     <item android:id="@+id/action_new"
         android:title="@string/action_new"
-        res-auto:showAsAction="ifRoom|withText"
-        android:icon="@drawable/ic_action_new"
-        android:showAsAction="always"
-        />
-    <item android:id="@+id/action_empty_bin"
-          android:title="@string/action_empty_bin"
-          res-auto:showAsAction="ifRoom|withText"
-          android:icon="@drawable/ic_action_empty_bin"
-          android:showAsAction="always"
-        />
+        res-auto:showAsAction="always"
+        android:icon="@drawable/ic_action_new" />
     <item android:id="@+id/action_filter"
           android:title="@string/action_filter"
-          res-auto:showAsAction="ifRoom|withText"
-          android:icon="@drawable/ic_action_filter"
-          android:showAsAction="always"
+          res-auto:showAsAction="always"
+          android:icon="@drawable/ic_action_filter" />
+    <item android:id="@+id/action_empty_bin"
+        android:title="@string/action_empty_bin"
+        res-auto:showAsAction="always"
+        android:icon="@drawable/ic_action_empty_bin"
         />
     <item android:id="@+id/action_settings"
         android:title="@string/action_settings"
-        app:showAsAction="never"
+        res-auto:showAsAction="never"
         />
     <item android:id="@+id/action_help"
         android:title="@string/action_help"
-        app:showAsAction="never"
+        res-auto:showAsAction="never"
         />
     <item android:id="@+id/action_privacy_policy"
         android:title="@string/action_privacy_policy"
-        app:showAsAction="never"
+        res-auto:showAsAction="never"
         />
 </menu>
 

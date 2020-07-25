@@ -1,60 +1,90 @@
 <resources>
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <!--
-                <item name="colorPrimaryDark">@color/colorPrimary</item>
-                <item name="colorAccent">@color/colorPrimary</item>
+    <style name="AppThemeBase" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Notification bar
+        <item name="colorPrimaryDark">#00FF00</item>
         -->
-        <item name="android:backgroundTint">@color/normalBackground</item> <!-- Tint !!! -->
-        <item name="actionBarStyle">@style/MyActionBar</item>
+        <!-- Checkboxes, preference activity titles -->
+        <item name="colorPrimary">?myColorPrimary</item>
+        <item name="colorAccent">?myColorPrimary</item>
+
+<!--
+        <item name="colorButtonNormal">?myColorPrimary</item>
+        <item name="colorSecondary">?myColorPrimary</item>
+        <item name="colorOnSecondary">?myColorPrimary</item>
+        <item name="colorOnBackground">?myColorPrimary</item>
+-->
+<!--
+        <item name="android:textColorSecondary">#00FF00</item>
+        <item name="android:colorControlNormal">#00FF00</item>
+        <item name="android:colorAccent">#00FF00</item>
+        <item name="android:colorControlActivated">#00FF00</item>
+        <item name="android:colorForeground">#00FF00</item>
+        <item name="android:actionMenuTextColor">#00FF00</item>
+        <item name="android:color">#00FF00</item>
+-->
+
+        <item name="android:backgroundTint">?myNormalBackground</item> <!-- Tint !!! -->
+
+        <item name="colorControlActivated">?myColorPrimary</item>
+        <item name="colorControlNormal">?myColorPrimary</item>
+
+<!--        <item name="actionBarStyle">@style/MyActionBar</item>-->
+<!--        <item name="popupMenuStyle">@style/MyPopupMenu</item>-->
+    </style>
+
+    <style name="AppThemeGreen" parent="AppThemeBase">
+        <item name="myColorPrimary">@color/colorPrimaryGreen</item>
+        <item name="myNormalBackground">@color/normalBackgroundGreen</item>
+        <item name="myButtonBackground">@color/buttonBackgroundGreen</item>
+        <item name="mySelectedBackground">@color/selectedBackgroundGreen</item>
+    </style>
+
+    <style name="AppThemeViolet" parent="AppThemeBase">
+        <item name="myColorPrimary">@color/colorPrimaryViolet</item>
+        <item name="myNormalBackground">@color/normalBackgroundViolet</item>
+        <item name="myButtonBackground">@color/buttonBackgroundViolet</item>
+        <item name="mySelectedBackground">@color/selectedBackgroundViolet</item>
+    </style>
+
+    <style name="AppThemeBlue" parent="AppThemeBase">
+        <item name="myColorPrimary">@color/colorPrimaryBlue</item>
+        <item name="myNormalBackground">@color/normalBackgroundBlue</item>
+        <item name="myButtonBackground">@color/buttonBackgroundBlue</item>
+        <item name="mySelectedBackground">@color/selectedBackgroundBlue</item>
     </style>
 
     <style name="MyActionBar" parent="@style/Widget.AppCompat.Light.ActionBar.Solid">
         <item name="titleTextStyle">@style/MyTitleTextStyle</item>
+        <item name="checkboxStyle">@style/MyCheckboxStyle</item>
     </style>
 
     <style name="MyTitleTextStyle" parent="@style/TextAppearance.AppCompat.Title">
-        <item name="android:textSize">20sp</item> <!-- Default for portrait is 20sp and for landscape 14sp-->
-    </style>
-<!--
-    <style name="MapActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
+        <!-- Default for portrait is 20sp and for landscape 14sp Так хорошо -->
+        <!-- <item name="android:textSize">20sp</item> -->
     </style>
 
-    <style name="GalleryActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
+    <style name="MyPopupMenu" parent="@style/Widget.AppCompat.PopupMenu">
+        <item name="android:checkboxStyle">@style/MyCheckboxStyle</item>
     </style>
 
-    <style name="SettingsActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
-        <item name="android:actionBarStyle">@style/MyActionBar</item>
-        <item name="android:textSize">22sp</item>
+    <style name="MyCheckboxStyle" parent="@style/Widget.AppCompat.CompoundButton.CheckBox">
+        <!-- Пытаюсь покрасить рамки checkbox'ов - никак. В Preference Activity OK -->
+        <item name="colorControlNormal">?myColorPrimary</item>
+        <item name="android:textColorSecondary">?myColorPrimary</item>
     </style>
-
-    <style name="EditTextActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
-    </style>
-
-    <style name="HelpActivityTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <item name="android:itemBackground">@color/main_normalBackgroundBlue2</item>
-    </style>
--->
 
     <style name="DialogFragmentTheme" parent="Theme.AppCompat.Light">
         <item name="android:textColor">@color/fragment_textColor</item>
-        <item name="android:background">@color/fragment_background</item>
-        <item name="android:textSize">@dimen/walkfilter_textSize1</item>
-        <!--
-        <item name="colorControlActivated">@color/colorPrimaryBlue</item>
-        <item name="colorControlNormal">@color/fragment_background</item>
-        -->
+        <item name="android:background">?myNormalBackground</item>
+        <item name="colorControlActivated">?myColorPrimary</item>
+        <item name="colorControlNormal">?myColorPrimary</item>  <!-- кружки radio buttons не выбранных, квадраты checkbox'ов -->
     </style>
 
     <style name="WalkInfoButton" parent="DialogFragmentTheme">
         <item name="android:height">@dimen/walkinfo_buttonHeight</item>
         <item name="android:textSize">@dimen/walkinfo_textSize3</item>
         <item name="android:textColor">@color/walkinfo_color1</item>
-        <item name="android:backgroundTint">@color/buttonBackground</item>
+        <item name="android:backgroundTint">?myButtonBackground</item>
 
         <item name="android:drawablePadding">1dp</item>
         <item name="android:paddingLeft">2dp</item>
@@ -63,4 +93,11 @@
         <item name="android:gravity">left</item>
     </style>
 
+    <style name="CommonButton" parent="DialogFragmentTheme">
+        android:backgroundTint="?myButtonBackground"
+    </style>
+
+    <style name="WalkFilterTheme" parent="DialogFragmentTheme">
+<!--        <item name="android:textSize">@dimen/walkfilter_textSize1</item>-->
+    </style>
 </resources>

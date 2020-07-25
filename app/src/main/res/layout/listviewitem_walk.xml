@@ -22,8 +22,8 @@
         android:layout_marginBottom="0dp"
         android:paddingLeft="0dp"
         android:paddingRight="0dp"
-        app:backgroundTint="@color/buttonBackground"
-        android:textStyle="bold"
+        android:backgroundTint="?myButtonBackground"
+        android:textSize="@dimen/listviewitem_textSize1"
         android:text="#999"
         android:focusable="false"
         android:focusableInTouchMode="false"
@@ -43,9 +43,8 @@
         android:layout_marginTop="@dimen/listviewitem_verticalPadding"
         android:layout_marginStart="5dp"
         android:textSize="@dimen/listviewitem_textSize1"
-        android:textColor="#000000"
         android:textStyle="bold"
-        android:text="Qqq"/>
+        android:text="30.06.2020"/>
     <TextView
         android:id="@+id/textViewString2"
         android:layout_width="wrap_content"
@@ -55,9 +54,9 @@
         android:layout_marginStart="5dp"
         android:singleLine="true"
         android:textSize="@dimen/listviewitem_textSize2"
-        android:textColor="#000000"
         android:gravity="center"
-        android:text="22:33"/>
+        android:textColor="#000000"
+        android:text="22:33..."/>
     <TextView
         android:id="@+id/textViewString3"
         android:paddingStart="5dp"
@@ -68,6 +67,7 @@
         android:singleLine="true"
         android:textSize="@dimen/listviewitem_textSize2"
         android:textColor="#000000"
-        android:text="11:11"/>
+        android:text="11:11..."/>
 </RelativeLayout>
 
+<!--    app:textColor="?android:attr/textColor"-->

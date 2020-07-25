@@ -42,10 +42,12 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Collection;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.Vector;
 
 public class Utils {
     static final String TAG = "gfUtils";
@@ -82,13 +84,17 @@ public class Utils {
     }
 
     static boolean sleep(int milliseconds, boolean interruptable) {
+        if (interruptable && Thread.interrupted()) {  // Надо?
+            return true;
+        }
+
         long endTime = SystemClock.elapsedRealtime() + milliseconds;
         while (endTime > SystemClock.elapsedRealtime()) {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(100);
             } catch (Exception e) {
                 if (interruptable) {
-                    return true; // interrupted
+                    return true; // Разбудили
                 }
             }
         }
@@ -352,7 +358,9 @@ public class Utils {
     }
 
     static int dpyToPx(int dpy) {
-        return (int) metrics.ydpi * dpy / 160;
+        float ydpi = metrics.ydpi;  // The exact physical pixels per inch of the screen in the Y dimension
+        if (ydpi < 10) ydpi *= 160;  // Дырка в virual device nexus 5X Android 10
+        return (int) ydpi * dpy / 160;
     }
 
     static <T> T nvl(T x, T y) {
@@ -444,11 +452,11 @@ public class Utils {
 
     static OutputStreamWriter logWriter;
     static void startDevelopersLog() {
-        Utils.logD(TAG, "Starting developer's log");
-
         String dir = Utils.createDirIfNotExists(appContext.getExternalFilesDir(null).getAbsolutePath(), "Logs");
         String logFilePath = dir + "/" +
-                new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".txt";
+            new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) +
+            /* "_" + android.os.Process.myPid() +*/ ".txt";
+        Utils.logD(TAG, "Starting developer's log - " + logFilePath);
         try {
             logWriter=new OutputStreamWriter(
                     new FileOutputStream(new File(logFilePath)));
@@ -465,15 +473,17 @@ public class Utils {
     static void stopDevelopersLog() {
         logD(TAG, "Stopping developer's log");
 
-        try {
-            logWriter.close();
-        } catch (IOException e) {
-            String s = "Could not close developer's log";
-            Log.e(TAG, s);
-            Toast.makeText(appContext, s, Toast.LENGTH_LONG).show();
-            e.printStackTrace();
+        if (logWriter != null) {
+            try {
+                logWriter.close();
+            } catch (IOException e) {
+                String s = "Could not close developer's log";
+                Log.e(TAG, s);
+                Toast.makeText(appContext, s, Toast.LENGTH_LONG).show();
+                e.printStackTrace();
+            }
+            logWriter = null;
         }
-        logWriter = null;
     }
 
     public static void logD(String tag, String msg) {
@@ -481,12 +491,12 @@ public class Utils {
             Log.d(tag, msg);
 
             if (logWriter != null) {
-                String s = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.sss").format(new Date()) +
+                String s = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date()) +
                         " " + tag + " " + msg;
                 try {
                     logWriter.write(s + "\n");
                     logWriter.flush();
-                } catch (IOException e) {
+                } catch (Exception e) {
                     s = "Could not write a line to developer's log";
                     Log.e(TAG, s);
                     Toast.makeText(appContext, s,
@@ -607,14 +617,6 @@ public class Utils {
         }
     }
 
-    static void toast(Context context, String text, int duration) { // Просит того, кто может показать - кто впереди
-        Intent intent=new Intent("DoInUIThread")
-                .putExtra("action", "toast")
-                .putExtra("text", text)
-                .putExtra("duration", duration);
-        LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-    }
-
     static int getAfKind(String fileName) {  // Оставлено на всякий случай
         if (fileName==null) return 0;
         String ext="";
@@ -632,15 +634,19 @@ public class Utils {
         void accept(T t);
     }
 
+    private static Boolean isEmulator;
     static boolean isEmulator() { // Работает с Android Studio virtual devices, но не с BlueStacks:(
 /*      TelephonyManager telephonyManager=(TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
         String IMEI=telephonyManager.getDeviceId();
         return = IMEI!=null && !IMEI.isEmpty() && IMEI.replace("0", "").isEmpty(); // У эмулятора куча нулей
  Требует     <uses-permission android:name="android.permission.READ_PHONE_STATE" /> */
-//    if (true) return true;
-        return Build.MODEL.equals("Android SDK built for x86") ||
+        if (isEmulator == null) {
+            isEmulator = Build.MODEL.startsWith("Android SDK built for x86") ||
+                Build.MODEL.startsWith("sdk_gphone_x86") ||  // API 30
                 Build.MODEL.equals("AOSP on IA Emulator") ||
                 "marlin".equals(Build.DEVICE);  // BlueStacks
+        }
+        return isEmulator.booleanValue();
     }
 
     static String getDeviceId() {
@@ -666,5 +672,16 @@ public class Utils {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    static <T> int addToList (List<T> v, T e) {
+        for (int i = 0; i < v.size() ; i++) {
+            if (v.get(i) == null) {
+                v.set(i, e);
+                return i;
+            }
+        }
+        v.add(e);
+        return v.size() - 1;
     }
 }

@@ -85,6 +85,11 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
 
         Resources res=getResources();
 
+        v = getDialog().findViewById(android.R.id.title);
+        if (v != null) { // API 21 и далее... В 28-ом уже title bar'a нет
+            v.getLayoutParams().height = 0;
+        }
+
         v = inflater.inflate(R.layout.fragment_walkinfo, null);
 
         DB.dbInit(curActivity);
@@ -97,7 +102,7 @@ public class WalkInfoDialogFragment extends DialogFragment implements View.OnCli
         }
 
         ((TextView) v.findViewById(R.id.textViewTitle)).
-            setText(res.getString(R.string.walk_header) + walkId);
+            setText(String.format(getResources().getString(R.string.format_walk_header), walkId));
 
         timeZone=TimeZone.getTimeZone(cursor.getString(
                 cursor.getColumnIndex(DB.KEY_TIMEZONE)));

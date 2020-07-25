@@ -22,8 +22,8 @@
     <dimen name="walkinfo_textSize1">15dp</dimen>
     <dimen name="walkinfo_textSize3">13dp</dimen>
 
-    <dimen name="walkfilter_textSize1">14dp</dimen>
-    <dimen name="walkfilter_textSize2">10dp</dimen>
+    <dimen name="walkfilter_textSize1">20dp</dimen>
+    <dimen name="walkfilter_textSize2">15dp</dimen>
 
     <integer name="line_width">3</integer> <!-- dp -->
     <integer name="text_on_bmp_height">25</integer> <!-- % -->

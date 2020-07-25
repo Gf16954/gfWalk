@@ -40,6 +40,10 @@ public class WalkFilterDialogFragment extends DialogFragment implements View.OnC
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         }
 */
+        v = getDialog().findViewById(android.R.id.title);
+        if (v != null) { // API 21 и далее... В 28-ом уже title bar'a нет
+            v.getLayoutParams().height = 0;
+        }
 
         v = inflater.inflate(R.layout.fragment_walkfilter, null);
         v.findViewById(R.id.buttonApplyFilter).setOnClickListener(this);

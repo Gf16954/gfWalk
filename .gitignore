@@ -1,4 +1,5 @@
 *.ba?
+keystore.properties
 
 .gradle
 /local.properties

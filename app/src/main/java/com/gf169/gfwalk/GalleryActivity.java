@@ -100,6 +100,8 @@ public class GalleryActivity extends AppCompatActivity {
             R.drawable.bmp_null);
 //int m2 = 0; Тест - OutOfMemory
 
+    static final String GLOBAL_INTENT_FILTER = "com.gf169.gfwalk.GalleryActivity";
+
     @Override
     protected void onNewIntent(Intent intent) { // Повторный вход - из MapActivity
         Utils.logD(TAG, "onNewIntent");
@@ -125,6 +127,9 @@ public class GalleryActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Utils.logD(TAG, "onCreate");
+
+        SharedPreferences globalSettings = SettingsActivity.getCurrentWalkSettings(this, -1);
+        setTheme(MainActivity.getThemeX(globalSettings));
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_gallery);
@@ -139,8 +144,7 @@ public class GalleryActivity extends AppCompatActivity {
         calledFrom=extras.getString("calledFrom");
 
         if (show(extras)) {
-            LocalBroadcastManager.getInstance(this).registerReceiver(
-                    broadcastReceiver, new IntentFilter("ToGalleryActivity"));
+            registerReceiver(broadcastReceiver, new IntentFilter(GLOBAL_INTENT_FILTER));
         }
     }
 
@@ -521,7 +525,7 @@ public class GalleryActivity extends AppCompatActivity {
         Utils.logD(TAG, "onDestroy");
         super.onDestroy();
 
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver);
+        unregisterReceiver(broadcastReceiver);
     }
 
     @Override
@@ -530,10 +534,9 @@ public class GalleryActivity extends AppCompatActivity {
 
         saveComment();
         if (afNumber>=0) {
-            LocalBroadcastManager.getInstance(this).sendBroadcast(
-                    new Intent("DoInUIThread")
-                            .putExtra("action", "updateFromGallery")
-                            .putExtra("afInGalleryNumber", afNumber));
+            sendBroadcast(new Intent(MapActivity.GLOBAL_INTENT_FILTER)
+                .putExtra("action", "updateFromGallery")
+                .putExtra("afInGalleryNumber", afNumber));
         }
         super.finish();
     }
@@ -563,9 +566,8 @@ public class GalleryActivity extends AppCompatActivity {
         }
 
         finish();
-        LocalBroadcastManager.getInstance(this).sendBroadcast(
-                new Intent("DoInUIThread") // to MapActivity
-                        .putExtra("action", "finish"));
+        sendBroadcast(new Intent(MapActivity.GLOBAL_INTENT_FILTER)
+            .putExtra("action", "finish"));
         return true;
     }
 
@@ -596,11 +598,11 @@ public class GalleryActivity extends AppCompatActivity {
     }
 
 
-    private BroadcastReceiver broadcastReceiver=new BroadcastReceiver() {
+    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action=intent.getStringExtra("action");
-            Utils.logD(TAG, "Got a local message - "+action);
+            Utils.logD(TAG, "Got a global message - "+action);
 
             if ("finish".equals(action)) { // from MapActivity when pressed Up
                 finish();
@@ -691,7 +693,7 @@ public class GalleryActivity extends AppCompatActivity {
                 if (imageView!=bigPicture) {
                     String s = getPlayDuration(af);
                     if (s != null) {
-                        bitmap = MyMarker.addTextOnIcon(bitmap, s, 0, -1);
+                        bitmap = MyMarker.addTextOnIcon(bitmap, s, 0, Color.TRANSPARENT);
                     } else {
                         bitmap = MyMarker.addOverlayOnBitmap(bitmap, this.getResources(), R.drawable.overlay_play);
                     }
@@ -853,7 +855,7 @@ if (m2 % 15 == 0) {
 
         ImageSpan span = new ImageSpan(this,R.drawable.hint_write,
                 ImageSpan.ALIGN_BOTTOM);
-        SpannableStringBuilder ssb = new SpannableStringBuilder("   ");  // !!!
+        SpannableStringBuilder ssb = new SpannableStringBuilder("          ");  // !!!
         ssb.setSpan(span,0,1, Spannable.SPAN_INCLUSIVE_INCLUSIVE );
         commentField.setHint(ssb);
 
@@ -949,13 +951,12 @@ if (m2 % 15 == 0) {
             if (!deletedAFPointNumbers.contains(" " + s2))
                 deletedAFPointNumbers += s2;
         }
-        LocalBroadcastManager.getInstance(this).sendBroadcast(
-            new Intent("DoInUIThread")
-                    .putExtra("action", "updateFromGallery")
-                    .putExtra("deletedAFNumbers", deletedAFNumbers)
-                    .putExtra("deletedAFPointNumbers", deletedAFPointNumbers.substring(1))
-                    .putExtra("afInGalleryNumber", afNumber)
-                    );
+        sendBroadcast(new Intent(MapActivity.GLOBAL_INTENT_FILTER)
+            .putExtra("action", "updateFromGallery")
+            .putExtra("deletedAFNumbers", deletedAFNumbers)
+            .putExtra("deletedAFPointNumbers", deletedAFPointNumbers.substring(1))
+            .putExtra("afInGalleryNumber", afNumber)
+            );
 
         MainActivity.pleaseDo=MainActivity.pleaseDo+" refresh selected item";
         if (afNumber<0) { // Все удалили

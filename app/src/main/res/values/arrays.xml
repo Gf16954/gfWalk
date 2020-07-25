@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="skin_color_names_array">
+        <item>@string/word_green</item>
+        <item>@string/word_violet</item>
+        <item>@string/word_blue</item>
+    </string-array>
+    <string-array name="skin_color_values_array">
+        <item>"Green"</item>
+        <item>"Violet"</item>
+        <item>"Blue"</item>
+    </string-array>
+</resources>

@@ -3,7 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:theme="@style/DialogFragmentTheme"
+    android:theme="@style/WalkFilterTheme"
     >
     <TextView
         android:id="@+id/textViewTitle"
@@ -13,7 +13,6 @@
         android:layout_marginBottom="@dimen/walkinfo_paddingVert1"
         android:paddingLeft="@dimen/walkinfo_paddingHor1"
         android:gravity="center"
-        android:textStyle="bold"
         android:text="@string/filter_show_walks"
         />
     <ScrollView
@@ -38,18 +37,21 @@
                     android:id="@+id/radioButtonShowNotInBean"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:textStyle="bold"
                     android:text="@string/filter_not_in_bin_only"
                     />
                 <RadioButton
                     android:id="@+id/radioButtonShowInBean"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:textStyle="bold"
                     android:text="@string/filter_in_bin_only"
                     />
                 <RadioButton
                     android:id="@+id/radioButtonShowAll"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:textStyle="bold"
                     android:text="@string/filter_all"
                     />
             </RadioGroup>
@@ -60,7 +62,6 @@
                 android:layout_height="wrap_content"
                 android:layout_below="@id/radioButtonsBean"
                 android:paddingTop="@dimen/walkinfo_paddingHor1"
-                android:textStyle="bold"
                 android:text="@string/filter_comment_contains"
                 />
             <EditText
@@ -68,19 +69,19 @@
                 android:layout_width="200dp"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/textViewCommentContains"
-                android:paddingRight="@dimen/walkinfo_paddingHor1"
-                android:textColor="@color/fragment_textColor"
-                android:textStyle="normal"
+                android:paddingEnd="@dimen/walkinfo_paddingHor1"
+                android:textStyle="bold"
                 android:inputType="text"
-                android:text=""/>
-
+                android:hint="..."
+                android:text=""
+                />
             <Button
                 android:id="@+id/buttonClearFilter"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/textViewCommentContains2"
                 android:layout_marginTop="20dp"
-                android:backgroundTint="@color/buttonBackground"
+                android:backgroundTint="?myButtonBackground"
                 android:text="@string/filter_clear"
                 />
             <Button
@@ -90,7 +91,7 @@
                 android:layout_below="@id/buttonClearFilter"
                 android:layout_alignParentRight="true"
                 android:layout_marginRight="@dimen/walkinfo_paddingHor1"
-                android:backgroundTint="@color/buttonBackground"
+                android:backgroundTint="?myButtonBackground"
                 android:text="@string/filter_apply"
                 />
         </RelativeLayout>

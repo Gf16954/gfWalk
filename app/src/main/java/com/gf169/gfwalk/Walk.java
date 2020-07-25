@@ -377,20 +377,15 @@ public class Walk {
             } while (cursor.moveToNext());
         }
         if (isFirstCall) { // Точки загружены, можно установить Zoom - дожидаемся пока загрузится карта и просим
-            new Thread(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            while (!mapIsLoaded) {
-                                if (Utils.sleep(1000,true)) {  //TODO: предохраниться от зависания и убийства UIThread
-                                    return;
-                                }
-                            }
-                            Intent intent = new Intent("DoInUIThread");
-                            intent.putExtra("action", "setZoomAndFocus");
-                            LocalBroadcastManager.getInstance(mapActivity).sendBroadcast(intent);
-                        }
-                    }, "gfWaitForMapIsLoaded").start();
+            new Thread(() -> {
+                while (!mapIsLoaded) {
+                    if (Utils.sleep(1000,true)) {  //TODO: предохраниться от зависания и убийства UIThread
+                        return;
+                    }
+                }
+                mapActivity.sendBroadcast(new Intent(MapActivity.GLOBAL_INTENT_FILTER)
+                    .putExtra("action", "setZoomAndFocus"));
+            }, "gfWaitForMapIsLoaded").start();
         }
         for (int k = Math.max(lastPointInd,0); k < points.size(); k++) { // Рисуем загруженные точки, начиная, если надо, с последней уже нарисованной
 
@@ -503,7 +498,7 @@ public class Walk {
         if (isLastNew) {   // Конечный маркер у новой последней точки
             MyMarker.drawMarker(map,
                     lastMarkers, MARKER_END,
-                    mapActivity.mode==MapActivity.MODE_ACTIVE ? MO_END_ACTIVE : MO_END_PASSIVE,
+                    mapActivity.mode==MapActivity.MODE_PASSIVE ? MO_END_PASSIVE :  MO_END_ACTIVE,
                     point.location,
                     point.markerTitle,
                     point.totalStr,

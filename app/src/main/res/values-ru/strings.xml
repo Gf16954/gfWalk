@@ -1,8 +1,8 @@
 <resources>
     <string name="app_name">gfWalk</string>
-    <string name="app_copyright">© 2016, gf &amp; children</string>
+    <string name="app_copyright">©2020, gf &amp; children</string>
 
-    <string name="walk_header">Прогулка #</string>
+    <string name="format_walk_header">Прогулка #%d</string>
     <string name="action_settings">Настройки</string>
     <string name="action_filter">Фильтр</string>
     <string name="action_new">Начать прогулку</string>
@@ -28,13 +28,13 @@
     <string name="action_show_entire_route">Показать весь маршрут</string>
     <string name="action_show_afs">Показывать маркеры артефактов</string>
     <string name="action_show_accuracy_circle">Показывать круг точности</string>
+    <string name="action_show_trace">Показывать след</string>
     <string name="action_map_type_satelite">Спутник</string>
     <string name="action_map_type_terrain">Рельеф</string>
     <string name="action_privacy_policy">Политика конфиденциальности</string>
-    <string name="action_turn_whereami_on">Показывать текущее положение</string>
-    <string name="action_turn_whereami_off">Не показывать текущее положение</string>
-    <string name="action_turn_live_map_on">Живая карта</string>
-    <string name="action_turn_Live_map_off">Мертвая карта</string>
+    <string name="action_whereami">Показывать текущее положение</string>
+    <string name="action_live_map">Живая карта</string>
+    <string name="action_autofocus">Автофокус</string>
 
     <string name="url_privacy_policy">http://gf169.narod.ru/_tbkp/GFWalk-privacy_policy-ru.htm</string>
     <string name="no_sound_recording_program">На устройстве не установлевно ни одной
@@ -113,46 +113,52 @@
     <string name="title_recording_max_seconds_between_points">Максимальный интервал между точками,
         секунды</string>
     <string name="summary_recording_max_seconds_between_points">С этой частотой программа будет
-        создавать точки. По умолчанию 60</string>
+        создавать точки</string>
     <string name="title_recording_min_meters_between_points">Минимальное расстояние между точками,
         метры</string>
     <string name="summary_recording_min_meters_between_points">Если создаваемая точка окажется ближе
-        к предыдущей, чем эта величина, она не будет создана. По умолчанию 10</string>
+        к предыдущей, чем эта величина, она не будет создана</string>
     <string name="title_recording_min_location_accuracy">Минимально допустимая точность определения
         положения, метры</string>
     <string name="summary_recording_min_location_accuracy">Если точность определения положения точки
-        ниже этой величины, точка не создается. По умолчанию 50</string>
+        ниже этой величины, точка не создается</string>
     <string name="title_map_current_location_request_interval">Интервал между определениями текущего
         местоположения, секунды</string>
     <string name="summary_map_current_location_request_interval">Чем меньше, тем точнее отражается на
-        карте ваше положение и тем больше расход батареи. По умолчанию 3</string>
+        карте ваше положение и тем больше расход батареи</string>
     <string name="title_recording_max_possible_speed">Максимально возможная скорость, км/час</string>
     <string name="summary_recording_max_possible_speed">Установите 400 при поездке на скоростном
-        поезде, 1000 - в самолете, в ракете - спросите у водителя. По умолчанию 250</string>
+        поезде, 1000 - в самолете, в ракете - спросите у водителя</string>
     <string name="title_map_min_possible_speed">Скорость стояния, км/час</string>
     <string name="summary_map_min_possible_speed">При движении со скоростью МЕНЬШЕЙ этой программа
         будет считать, что вы стоите, и стрелка маркера текущего положения будет указывать направление
-        вашего взгляда, а не направление движения - ЕСЛИ В ВАШЕМ ТЕЛЕФОНЕ ЕСТЬ ГЕОМАГНИТНЫЙ ДАТЧИК.
-        По умолчанию 2.4</string>
+        вашего взгляда, а не направление движения - ЕСЛИ В ВАШЕМ ТЕЛЕФОНЕ ЕСТЬ ГЕОМАГНИТНЫЙ ДАТЧИК</string>
 
     <string name="title_map_settings">Параметры показа прогулки на карте</string>
     <string name="title_map_show_address_in_markers">Показывать адрес в маркерах</string>
-    <string name="summary_map_show_address_in_markers">По умолчанию Да</string>
+    <string name="summary_map_show_address_in_markers"></string>
     <string name="title_map_show_details_in_markers">Показывать подробные данные точек</string>
-    <string name="summary_map_show_details_in_markers">По умолчанию Нет</string>
+    <string name="summary_map_show_details_in_markers"></string>
     <string name="title_map_show_netto_values_in_markers">Показывать нетто-величины в маркерах</string>
     <string name="summary_map_show_netto_values_in_markers">Нетто-величины это продолжительность и
-        километраж, вычисленные с учетом приостановок записи прогулки. Будут показаны в скобках.
-        По умолчанию Нет</string>
+        километраж, вычисленные с учетом приостановок записи прогулки. Будут показаны в скобках</string>
     <string name="title_map_cursor_pulsations_per_second">Число пульсаций маркера текущего положения в секунду</string>
-    <string name="summary_map_cursor_pulsations_per_second">0 - без пульсации. По умолчанию 1</string>
+    <string name="summary_map_cursor_pulsations_per_second">0 - без пульсации</string>
 
     <string name="title_gallery_settings">Параметры показа прогулки в галерее</string>
-    <string name="summary_gallery_ribbon_height">По умолчанию 10</string>
+    <string name="summary_gallery_ribbon_height"></string>
     <string name="title_gallery_ribbon_height">Высота нижней ленты в процентах от высоты экрана</string>
 
-    <string name="default_word">По умолчанию</string> <!-- Пробелы урезает! -->
-    <string name="set_word">, установлено</string>
+    <string name="title_misc_settings">Прочие настройки</string>
+    <string name="title_misc_skin_color">Цвет кожи</string>
+    <string name="summary_misc_skin_color"></string>
+
+    <string name="word_green">Зеленый</string>
+    <string name="word_violet">Фиолетовый</string>
+    <string name="word_blue">Синий</string>
+
+    <string name="word_default">По умолчанию</string> <!-- Пробелы урезает! -->
+    <string name="word_set">установлено</string>
 
     <string name="press_plus">Нажмите + в строке меню чтобы начать запись прогулки</string>
     <string name="goodbye">До свиданья:( Не могу работать без разрешений</string>

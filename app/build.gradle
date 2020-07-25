@@ -2,15 +2,19 @@ apply plugin: 'com.android.application'
 apply plugin: 'com.google.gms.google-services'
 apply plugin: 'com.google.firebase.crashlytics'
 
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
 android {
     signingConfigs {
-        config {
-            keyAlias 'gfWalk'
-            keyPassword 'kukareku'
-            storeFile file('C:\\Users\\gf2\\AndroidStudioProjects\\Keys\\release.keystore')
-            storePassword 'kukareku'
+        configRelease {
+            storeFile file(keystoreProperties['storeFile'])
+            keyAlias keystoreProperties['keyAlias']
+            storePassword keystoreProperties['storePassword']
+            keyPassword keystoreProperties['keyPassword']
         }
-        config1 {
+        configDebug {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
             storeFile file('C:\\Users\\gf2\\AndroidStudioProjects\\Keys\\debug.keystore')
@@ -20,21 +24,20 @@ android {
     defaultConfig {
         applicationId "com.gf169.gfwalk"
         minSdkVersion 21
-        targetSdkVersion 29
+        targetSdkVersion 28 // Не 29! Temporarily opt-out of scoped storage https://developer.android.com/training/data-storage/use-cases?hl=fa
         versionCode 26
         versionName "2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
+            signingConfig signingConfigs.configRelease
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.config
-//            debuggable = true
         }
         debug {
+            signingConfig signingConfigs.configRelease
             minifyEnabled false
-            signingConfig signingConfigs.config
             debuggable true
             applicationIdSuffix = '.debug'
         }
@@ -71,6 +74,7 @@ dependencies {
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'androidx.exifinterface:exifinterface:1.3.0-alpha01'
     implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.preference:preference:1.1.1'
 
     implementation 'com.google.android.material:material:1.1.0'
     implementation 'com.google.android.gms:play-services-maps:17.0.0'

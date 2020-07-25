@@ -1,31 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">@color/colorPrimaryGreen</color>
     <color name="colorPrimaryGreen">#018577</color>
-    <color name="colorPrimaryBlue">#8080AA</color>
+    <color name="normalBackgroundGreen">#F0F8F0</color>
+    <color name="buttonBackgroundGreen">#AADDCC</color>
+    <color name="selectedBackgroundGreen">#E8FFE8</color>
 
-    <color name="buttonBackground">@color/buttonBackgroundGreen3</color>
-    <color name="buttonBackgroundGreen">#51D5A7</color>
-    <color name="buttonBackgroundGreen2">#71F5C7</color>
-    <color name="buttonBackgroundGreen3">#AADDCC</color>
-    <color name="buttonBackgroundBlue">#C0C0EA</color>
+    <color name="colorPrimaryViolet">#6000C0</color>
+    <color name="normalBackgroundViolet">#FFF8FF</color>
+    <color name="buttonBackgroundViolet">#BFB0FF</color>
+    <color name="selectedBackgroundViolet">#F8E8F8</color>
 
-    <color name="normalBackground">@color/normalBackgroundGreen</color>
-    <color name="normalBackgroundGreen">#F8FFF8</color>
-    <color name="normalBackgroundGreen2">#E8F8E8</color>
-    <color name="normalBackgroundBlue">#F0F0FF</color>
-    <color name="normalBackgroundBlue2">#E8E8F8</color>
-
-    <color name="selectedBackground">@color/selectedBackgroundGreen2</color>
-    <color name="selectedBackgroundYellow">#F8F8D8</color>
-    <color name="selectedBackgroundGreen">#DDFFDD</color>
-    <color name="selectedBackgroundGreen2">#E8FFE8</color>
+    <color name="colorPrimaryBlue">#4040C0</color>
+    <color name="normalBackgroundBlue">#F0F0F8</color>
+    <color name="buttonBackgroundBlue">#C0C0FF</color>
+    <color name="selectedBackgroundBlue">#E8E8FF</color>
 
     <color name="deletedDelta">#00404080</color>
 
-    <color name="fragment_background">@color/normalBackground</color>
-    <color name="fragment_title">@color/normalBackground</color>
-    <color name="fragment_buttonBackground">@color/buttonBackgroundBlue</color>
     <color name="fragment_textColor">#000000</color>
     <color name="fragment_textColor2">#0000FF</color>
 
@@ -39,7 +30,7 @@
 
     <color name="line_pause">#808080</color>
     <color name="line_walking">#00FFFF</color>
-    <color name="line_running">#008080</color>
+    <color name="line_running">#00B0B0</color>
     <color name="line_onBicycle">#00FF00</color>
     <color name="line_inVehicle">#0000FF</color>
     <color name="line_unknown">#808080</color>

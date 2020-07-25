@@ -12,8 +12,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.ServiceInfo;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteException;
 import android.location.Geocoder;
 import android.location.Location;
 import android.net.Uri;
@@ -29,7 +29,6 @@ import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
 import androidx.exifinterface.media.ExifInterface;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -44,7 +43,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Random;
-import java.util.Set;
 import java.util.Vector;
 import java.util.regex.Pattern;
 
@@ -53,9 +51,14 @@ public class WalkRecorder extends Service implements
         LocationListener {
     static final String TAG = "gfWalkRecorder";
 
-    static WalkRecorder self;
+    static final String ACTION_START = "Start";
+    static final String ACTION_STOP = "Stop";
+    static final String ACTION_ADD_POINT = "AddPoint";
 
-    volatile Location lastGoodLocation = null;  // Последняя полученная от provider'a не ошибочная точка
+    static boolean isWorking;
+
+    volatile Location lastGoodLocation;  // Последняя полученная от provider'a не ошибочная точка
+    Location prevLocation;
     Location prevGoodLocation;
     volatile int curLocationIsOK; // Последняя полученная точка свежая и хорошая
 
@@ -63,7 +66,10 @@ public class WalkRecorder extends Service implements
     final int locationRequestInterval2 = 1;  // Начальный
     final int locationRequestInterval3 = 3;  // После плохой точки или долгого отсутствия
 
-    boolean mockLocation = false; // Ниже переустановлю: если под эмулятором - true
+    final int timerThreadTimeout1 = 1;  // Нормальный
+    final int timerThreadTimeout2 = 60;  // В сонном состоянии
+
+    boolean mockLocation; // Если под эмулятором, будет true
 
     int callNumber = -1;
     Thread timerThread;
@@ -87,12 +93,13 @@ public class WalkRecorder extends Service implements
 
     SharedPreferences walkSettings;
 
+    Vector<Long> lastAFIds = new Vector<>(Walk.AFKIND_MAX + 1); // По видам артефаков
     // Эти переменные update'ятся в разных thread'ах, поэтому volatile
     volatile boolean locationServiceIsReady = false;
     volatile String totalStr;
     volatile Location lastPointLocation = null;  // Последняя точка маршрута. Служит и флагом начала/продолжения прогулки
     volatile long lastPointTime = 0;
-    volatile int walkId;
+    volatile int walkId = 0;
     volatile long startTime;  // Время начала прогулки
     volatile Location endLocation; // Последней точки последнего продолжения
     volatile long walkDuration; // в миллисекундах
@@ -102,7 +109,6 @@ public class WalkRecorder extends Service implements
     volatile int lastPointNumber; // в прогулке
     volatile int lastAFNumber; // в прогулке
     volatile long lastPointId = 0;
-    volatile Vector<Long> lastAFIds = new Vector<>(Walk.AFKIND_MAX + 1); // По видам артефаков
     volatile boolean screenIsOn = true;
 
     int iOnLocationChanged = -1;
@@ -301,6 +307,11 @@ if the device is in power save mode and the screen is off.
         Utils.setDefaultUncaughtExceptionHandler(  // Чтобы при отвале все культурно убивало
                 () -> stop(5));
 */
+/*
+        walkSettings =
+            SettingsActivity.getCurrentWalkSettings(WalkRecorder.this, -1);  // Глобальные
+        switchDevelopersLog(true, walkSettings);
+*/
     }
 
     void startForeground() {
@@ -317,60 +328,66 @@ if the device is in power save mode and the screen is off.
         } else {
             notifyBuilder = new NotificationCompat.Builder(this);
         }
-        super.startForeground(notifyID, notifyBuilder
-                .setSmallIcon(R.drawable.ic_recording_1)
-                .setContentTitle(getString(R.string.notification_recording))
-                .setContentText(getResources().getString(R.string.waiting_for_GPS))
-                .setPriority(Notification.PRIORITY_MAX)  // Чтобы как можно левее
-                .addAction(new NotificationCompat.Action.Builder(
-                        R.drawable.ic_stop_recording,
-                        getString(R.string.notification_stop_recording),
-                        PendingIntent.getBroadcast(
-                                this, 1,
-                                new Intent(MapActivity.GLOBAL_INTENT_FILTER)
+        Notification notification = notifyBuilder
+            .setSmallIcon(R.drawable.ic_recording_1)
+            .setContentTitle(getString(R.string.notification_recording))
+            .setContentText(getResources().getString(R.string.waiting_for_GPS))
+            .setCategory(Notification.CATEGORY_SERVICE)
+            .setPriority(Notification.PRIORITY_MAX)  // Чтобы как можно левее
+            .addAction(
+                new NotificationCompat.Action.Builder(
+                    R.drawable.ic_stop_recording, // Не показывается
+                    getString(R.string.notification_stop_recording),
+                    PendingIntent.getBroadcast(
+                            this, 1,
+                            new Intent(MapActivity.GLOBAL_INTENT_FILTER)
 //                                        .setClass(this, MapActivity.class)  !!! С этим не доходит
-                                        .putExtra("action", "stopRecording"),
-                                PendingIntent.FLAG_UPDATE_CURRENT)
+                                    .putExtra("action", "stopRecording"),
+                            PendingIntent.FLAG_UPDATE_CURRENT)
                 ).build())
-                .setContentIntent(
-                        PendingIntent.getActivity(
-                                this, 2,
-                                (new Intent(this, MapActivity.class))
-                                        .setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
-                                PendingIntent.FLAG_UPDATE_CURRENT))
-                .build());
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    this, 2,
+                    (new Intent(this, MapActivity.class))
+                            .setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
+                    PendingIntent.FLAG_UPDATE_CURRENT))
+            .build();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            super.startForeground(notifyID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST);
+        } else {
+            super.startForeground(notifyID, notification);
+        }
 
         startTimerThread();
 
         broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
-                    Utils.logD(TAG, "Screen is turned off");
-                    screenIsOn = false;
-                    timerThread.interrupt();  // Экономим электроэнергию
-                } else if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
-                    Utils.logD(TAG, "Screen is turned on");
-                    screenIsOn = true;
-                    if (locationServiceIsReady) { // Добавляем точку, чтобы сразу нарисовал все ненарисованное
-                        addPoint(null, "Screen is turned on",
-                                0, null, null, false);
-                    }
-                    startTimerThread();
+            if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+                Utils.logD(TAG, "Screen is turned off");
+                screenIsOn = false;
+                timerThread.interrupt();
+
+            } else if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
+                Utils.logD(TAG, "Screen is turned on");
+                screenIsOn = true;
+                timerThread.interrupt();
+                if (locationServiceIsReady) { // Добавляем точку, чтобы сразу нарисовал все ненарисованное
+                    addPoint(null, "Screen is turned on",
+                            0, null, null, false);
                 }
+            }
             }
         };
         IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_SCREEN_OFF);
         registerReceiver(broadcastReceiver, filter);
 
-        walkSettings =
-                SettingsActivity.getCurrentWalkSettings(WalkRecorder.this, -1);  // Глобальные
         geocoder = new Geocoder(this, Locale.getDefault());
 
         mockLocation = Utils.isEmulator();
         if (mockLocation) {
-            mockerThread = startMocking(this::onLocationChanged, "gfMockerThread", 10000,
+            mockerThread = startMocking(this::onLocationChanged, "gfMockerThread", 60000,
                     Utils.str2Loc("55.75222 37.61556")); // Москва, Кремль
         } else {
             googleApiClient = new GoogleApiClient.Builder(this)
@@ -386,8 +403,10 @@ if the device is in power save mode and the screen is off.
                 while (!interrupted && !locationServiceIsReady) {
                     interrupted = Utils.sleep(waitingThreadTimeout * 1000, true);
                     if (!locationServiceIsReady) {
-                        Utils.toast(this,
-                                getResources().getString(R.string.waiting_for_GPS), Toast.LENGTH_LONG);
+                        sendBroadcast(new Intent(MapActivity.GLOBAL_INTENT_FILTER)
+                            .putExtra("action", "toast")
+                            .putExtra("text", getResources().getString(R.string.waiting_for_GPS))
+                            .putExtra("duration", Toast.LENGTH_LONG));
                     }
                 }
             }, "gfWaitingForGPS");
@@ -408,6 +427,7 @@ if the device is in power save mode and the screen is off.
             int iNotifyIcon = 0;
             Location prevLocation = new Location("");
 
+            int timeout = screenIsOn ? timerThreadTimeout1 : timerThreadTimeout2;
             boolean interrupted = false;
             while (!interrupted) {
                 // Utils.logD(TAG, "Timer thread is working");
@@ -415,7 +435,7 @@ if the device is in power save mode and the screen is off.
                 if (lastGoodLocation == null) continue;
                 if (lastGoodLocation.getTime() == prevLocation.getTime()) {
                     if (System.currentTimeMillis() - prevLocation.getTime() > // Долго не было onLocationChange - в метро
-                            locationRequestInterval * 1000 * nStale) {
+                        locationRequestInterval * 1000 * nStale) {
                         if (curLocationIsOK >= 0) {
                             curLocationIsOK = -1;  // Пропал GPS и остальное - ничего не получаем
                         }
@@ -425,52 +445,115 @@ if the device is in power save mode and the screen is off.
                 }
                 iNotifyIcon = ++iNotifyIcon % 2;
                 notifyBuilder
-                        .setSmallIcon(iNotifyIcon == 0 ?
-                                R.drawable.ic_recording_1 :
-                                curLocationIsOK >= 0 || !BuildConfig.BUILD_TYPE.equals("debug") ?
-                                        R.drawable.ic_recording_2 : R.drawable.ic_recording_3)
-                        .setContentText(totalStr);
+                    .setSmallIcon(iNotifyIcon == 0 ?
+                        R.drawable.ic_recording_1 :
+                        curLocationIsOK >= 0 ? /* || !BuildConfig.BUILD_TYPE.equals("debug") */
+                            R.drawable.ic_recording_2 : R.drawable.ic_recording_3)
+                    .setContentText(totalStr);
                 notificationManager.notify(notifyID, notifyBuilder.build());
 
-                interrupted = Utils.sleep(1000, true);
+                interrupted = Utils.sleep(timeout * 1000, true);
+
+                if (interrupted) {
+                    if (timeout != (screenIsOn ? timerThreadTimeout1 : timerThreadTimeout2)) {
+                        // Разбудили чтобы сменил интервал
+                        timeout = screenIsOn ? timerThreadTimeout1 : timerThreadTimeout2;
+                        interrupted = false;
+                    } else {
+                        switchWatchdog(false);
+                        break;
+                    }
+                } else {
+                    switchWatchdog(true);
+                }
             }
             Utils.logD(TAG, "Timer thread is stopped");
         },"gfTimerThread").start();
     }
 
+    void switchWatchdog(boolean on) {
+
+if (true) return; // !!! Не помогает
+
+        Intent intent = new Intent(this, Watchdog.class);
+        if (on) {
+            intent.setAction(Watchdog.ACTION_START)
+                .putExtra("walkId", walkId);
+        } else {
+            intent.setAction(Watchdog.ACTION_STOP);
+        }
+        startService(intent);
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {  // Main thread
         callNumber++;
-        Utils.logD(TAG, "onStartCommand call "  + callNumber);
+        Utils.logD(TAG, "onStartCommand call #"  + callNumber +
+            " action=" + (intent == null ? "null" : intent.getAction()));
 
-        if (intent == null) { // ?
+        if (intent == null) { // Андроид после убийства рестартует сервис
             Utils.logD(TAG, "onStartCommand: intent == null");
             stop(1);
             return Service.START_STICKY;
         }
 
-        // Вызов из MapActivity
+        String action = intent.getAction();
         Bundle extras = intent.getExtras();
-            // Начни запись прогулки
-        int walkId2 = extras != null ? extras.getInt("walkId") : 0;
-        if (walkId2 > 0) {
-            Utils.logD(TAG, "onStartCommand: walkId=" + walkId2);
-            getWalkInf(walkId2);
 
-            self = this;  // Работает !!!
+        if (ACTION_START.equals(action)) {  // Из MapActivity
+            if (walkId > 0) {  // Из Watchdog'a - попытка рестарта, сервис уже работает
+                Utils.logD(TAG, "onStartCommand: Watchdog");
+                return START_STICKY;
+            }
+
+            walkId = extras.getInt("walkId");
+            Utils.logD(TAG, "onStartCommand: walkId=" + walkId);
+
+            walkSettings = SettingsActivity.getCurrentWalkSettings(WalkRecorder.this, walkId);
+/*
+            walkSettings=getSharedPreferences("temp", MODE_PRIVATE);
+            HashMap<String, Object> hm = (HashMap<String, Object>) extras.getSerializable("walkSettings");
+            SharedPreferences.Editor ed  = walkSettings.edit();
+            for (String key:hm.keySet()) {
+                Object o = hm.get(key);
+                if (o instanceof String) {
+                    ed.putString(key, (String) o);
+                }
+            }
+            ed.commit();
+*/
+            getWalkInf();
+
+            isWorking = true;
             startForeground();  // Реальный запуск здесь и только здесь - единственный законный способ!
 
             return Service.START_STICKY;
-        }
+        };
 
-        if (self == null) {  // Ни на что не реагируем
+        if (!isWorking) {  // Ни на что не реагируем
             StringBuilder s = new StringBuilder("\n");
             for (CharSequence c: intent.getExtras().keySet()) s.append(c).append(" ");
-            Utils.logD(TAG, "onStartCommand: skipping premature call"  + s);
+            Utils.logD(TAG, "onStartCommand: skipping premature call "  + s);
             return Service.START_STICKY;
         }
 
-            // Передает скорость - для участия в определении typeActivity
+        if (ACTION_ADD_POINT.equals(action)) { // Из MapActivity
+            addPoint(extras.getParcelable("curLocation"),
+                extras.getString("debugInfo",""),
+                extras.getInt("afKind"),
+                extras.getString("afUri"),
+                extras.getString("afFilePath"),
+                extras.getBoolean("isLastPoint"));
+            return Service.START_STICKY;
+        }
+
+        if (ACTION_STOP.equals(action)) { // Из MapActivity
+            stop(extras.getInt("stopCallSource"));
+            return Service.START_STICKY;
+        }
+
+/*
+            // Передает скорость - для участия в определении typeActivity - НЕ ИСПОЛЬЗУЕТСЯ
         float speedFromMap = extras != null ? extras.getFloat("speedFromMap", -1) : -1;
         if (speedFromMap >= 0) {
             arStateMean.maxSpeedFromMap = Math.max(arStateMean.maxSpeedFromMap, speedFromMap);
@@ -478,6 +561,7 @@ if the device is in power save mode and the screen is off.
                     + speedFromMap + " " + arStateMean.maxSpeedFromMap);
             return Service.START_STICKY;
         }
+*/
 
         // Вызов отсюда же - ActivityRecognition
         if (ActivityRecognitionResult.hasResult(intent)) {
@@ -497,16 +581,29 @@ if the device is in power save mode and the screen is off.
 
     @Override
     public void onDestroy() {
-        stop(0); // Вдруг снаружи кто-то сделает stopService
         Utils.logD(TAG, "onDestroy");
+
+        stop(0); // Вдруг снаружи кто-то сделает stopService
     }
 
-    void stop(int callNumber) {
-        Utils.logD(TAG, "stop "+callNumber);
+    @Override
+    public void onLowMemory() {
+        Utils.logD(TAG, "onLowMemory");
+    }
 
-        Utils.setDefaultUncaughtExceptionHandler(null);
+    @Override
+    public void onTaskRemoved(Intent rootIintent) {
+        Utils.logD(TAG, "onTaskRemoved");
 
-        self = null;
+        stop(9);
+    }
+
+    void stop(int callSource) {
+        Utils.logD(TAG, "stop "+callSource);
+
+//        Utils.setDefaultUncaughtExceptionHandler(null);
+
+        isWorking = false;
 
         if (googleApiClient!=null) {
             if (googleApiClient.isConnected()) {
@@ -539,9 +636,11 @@ if the device is in power save mode and the screen is off.
         } catch (Exception e) {} // Еще не зарегистрирован
 
         lastGoodLocation=null;
-        stopSelf();
+//        switchDevelopersLog(false, walkSettings);
 
-//        switchLogcatRecorder(false, walkSettings, this);
+//        switchWatchdog(false);
+
+        stopSelf();
     }
 
     @Override
@@ -555,19 +654,14 @@ if the device is in power save mode and the screen is off.
         Utils.logD(TAG, "onConnected");
 
         if (googleApiClient==null) { // 2 раза было ! Между onCreate\Connect и onConnected сервис убит
-//            toast("onConnected: googleApiClient==null !!!", Toast.LENGTH_LONG);
             return;
         }
         locationRequestInterval=locationRequestInterval2;
         requestLocationUpdates(locationRequestInterval,locationRequestInterval); // Начальные, для определения состояния
     }
 
-    void getWalkInf(int walkId) {
+    void getWalkInf() {
         Utils.logD(TAG, "getWalkInf " + walkId);
-
-        this.walkId=walkId;
-        walkSettings =
-                SettingsActivity.getCurrentWalkSettings(WalkRecorder.this, walkId);
 
         DB.dbInit(this);
         Cursor cursor=DB.db.query(DB.TABLE_WALKS, new String[]{
@@ -626,60 +720,47 @@ if the device is in power save mode and the screen is off.
     public void onConnectionFailed(ConnectionResult result) {  // Никогда не видел
         Utils.logD(TAG, "onConnectionFailed, result: "+result.toString());
 
-        LocalBroadcastManager.getInstance(this).sendBroadcast(
-                new Intent("DoInUIThread")
-                        .putExtra("action", "showNotConnectedDialog")  // Выдаст диалог "Установите новую версию"
-                        .putExtra("resultCode", result.getErrorCode())
-                        .putExtra("result", result.toString()));
+        sendBroadcast(new Intent(MapActivity.GLOBAL_INTENT_FILTER)
+            .putExtra("action", "showNotConnectedDialog")  // Выдаст диалог "Установите новую версию"
+            .putExtra("resultCode", result.getErrorCode())
+            .putExtra("result", result.toString()));
         stop(4);
     }
 
     @Override
     public void onConnectionSuspended(int cause) {  // Сам восстановит
-        Utils.logD(TAG, "onConnectionSuspended, cause=" + cause);
+        Utils.logD(TAG, "onConnectionSuspended, cause=" + cause +
+            (cause == CAUSE_SERVICE_DISCONNECTED ? " CAUSE_SERVICE_DISCONNECTED" : " CAUSE_NETWORK_LOST"));
     }
 
     @Override
     public void onLocationChanged(Location location) {  // Main thread
-        if (self == null) return;
+        if (!isWorking) return;
 
         iOnLocationChanged++;
         Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": " +
-                new SimpleDateFormat("HH:mm:ss.sss").format(location.getTime()) + " " +
+                new SimpleDateFormat("HH:mm:ss.SSS").format(location.getTime()) + " " +
                 Utils.loc2Str(location)+" "+(arStateLast==null ? "" : arStateLast.name) + " " + arStateMean.isStill);
 
         if (lastGoodLocation==null) {// Самая первая
+            prevLocation=new Location(location);
             lastGoodLocation=new Location(location);
             prevGoodLocation=new Location(location);
             return;
         }
-        // Location хорошая?
-        int iOk=0;
-        if (locationServiceIsReady  // Пока Location service не заработал, на AR не обращаем внимания
-                && arStateMean.isStill == Boolean.TRUE) {  // Стоял весь интервал
-            long t=location.getTime();
-            location.set(lastGoodLocation); // Копируем предыдущую
-            location.setTime(t);
-            iOk=4;
 
-        } else {
-
-            iOk = testLocation(location);
-
-            if (iOk<3) {
-                nLocationNotOk++;
-                if (nLocationNotOk > nLocationNotOkMax) {
-                    iOk = 7;
-                }
-            }
+        if (Utils.loc2LatLng(location).equals(Utils.loc2LatLng(prevLocation))) { // Левая! Появляется при изменении интервала
+            Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": same as previous - ignoring");
+            return;
         }
-        curLocationIsOK = iOk <3? 0 : 1;
-        Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": OK=" + iOk + " " + nLocationNotOk);
+        prevLocation.set(location);
+
+        curLocationIsOK = checkLocation(location, false) ? 1 : 0;
+        Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged+": curLocationIsOK=" + curLocationIsOK);
 
         if (curLocationIsOK > 0) { // Все ОК, полноценная точка
             prevGoodLocation.set(lastGoodLocation);
             lastGoodLocation.set(location);
-            nLocationNotOk = 0;
 
             if (locationServiceIsReady) { // Добавляем точку
                 addPoint(null, "onLocationChanged",  // null - добавится lastGoodLocation
@@ -720,71 +801,105 @@ if the device is in power save mode and the screen is off.
         }
     }
 
-    int testLocation(Location location) {
-        int r = 0;
-        if (locationServiceIsReady ||
-            !Utils.loc2LatLng(location).equals(Utils.loc2LatLng(lastGoodLocation))) {  // Первые 2 точки должны быть разные
-            r = 1;
+    boolean checkLocation(Location location, boolean fromMapActivity) {
+        boolean r = true;
+        boolean makePrevious = false;
+        float x,y,z;
+        String s;
 
-            float x = location.getAccuracy();
-            float y = Integer.parseInt(walkSettings.getString("recording_min_location_accuracy", "50"));
-            String s = " Test 2 (accuracy) " + x + " < " + y;
-            if (x < y) { // Точность определения положения приемлема
-                r = 2;
+        // Не протухла ли location ?
+        x = System.currentTimeMillis() - location.getTime();
+        y = Integer.parseInt(walkSettings.getString("recording_max_seconds_between_points", "60"));
+        s = " check 1 (freshness) " + x + "<" + y + "*1000*" + nStale + " ";
+        r = x < y * 1000 * nStale;
+        Utils.logD(TAG, s + r);
+
+        if (r && !makePrevious) {
+            x = location.getAccuracy();
+            y = Integer.parseInt(walkSettings.getString("recording_min_location_accuracy", "50"));
+            s = " check 2 (accuracy) " + x + "<" + y  + " ";
+            if (x > y) { // Точность определения положения приемлема
+                r = false;
             };
-            Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged +
-                s + " " + (r == 2 ? "Ok" : "NOT Ok"));
-            if (r == 2) {
-                if (arStateLast == null) {
-                    s = "Test 3 arStateLast == null";
-                    r = 5;
-                } else if (System.currentTimeMillis()-location.getTime()> // Не протухла ли location ?
-                    Integer.parseInt(walkSettings.getString("recording_max_seconds_between_points", "60"))
-                        * 1000 * nStale) {
-                    s = "Test 3 - too much time after previous point";
-                    r = 6;
-                } else {
-                    x = Utils.getDistance(Utils.loc2LatLng(location), Utils.loc2LatLng(lastGoodLocation));
-                    y = arStateLast.maxPossibleSpeed / 3.6f;  // m/s
-                    float z = arStateMean.maxPossibleSpeed / 3.6f;
-                    long i = (location.getTime() - lastGoodLocation.getTime()) / 1000;
-                    s = "Test 3 (erronious jump) " + x + " <= max(" + y + "," + z + ") * " + i;
-                    if (x <= Math.max(y, z) * i) {
-                        r = 3;
-                    }
-                }
-                Utils.logD(TAG, "onLocationChanged #"+iOnLocationChanged +
-                    " " + s + " " + "  r=" + r + (r >= 3 ? " Ok" : " NOT Ok"));
+            Utils.logD(TAG, s + r);
+            if (!locationServiceIsReady) {
+                return r;
             }
         }
+
+        if (r && !makePrevious) {
+            s = " check 3 (stillness) " + arStateMean.isStill + " -> makePrevious ";
+            makePrevious = arStateMean.isStill == Boolean.TRUE;  // Стоял весь интервал
+            Utils.logD(TAG, s + makePrevious);
+        }
+
+        if (r && !makePrevious) {
+            x = Utils.getDistance(Utils.loc2LatLng(location), Utils.loc2LatLng(lastGoodLocation));
+            y = Integer.parseInt(walkSettings.getString("recording_min_meters_between_points", "10"));
+            z = (lastGoodLocation.getAccuracy() + location.getAccuracy()) * ACCURACY_FACTOR;
+/* In statistical terms, it is assumed that location errors are random with a normal distribution,
+so the 68% confidence circle represents one standard deviation. */
+            s = " check 4 (same location) " + x + "<" + "max(" + y + "," + z + ")" + " -> makePrevious ";
+            makePrevious = x <= Math.max(y, z);
+            Utils.logD(TAG, s + makePrevious);
+        }
+
+        if (r && !makePrevious) {
+            if (arStateLast != null && arStateMean != null) {
+                if (!"still".equals(arStateLast.name) || !"still".equals(arStateMean.name)) {
+                    x = Utils.getDistance(Utils.loc2LatLng(location), Utils.loc2LatLng(lastGoodLocation));
+                    y = arStateLast.maxPossibleSpeed / 3.6f;  // m/s
+                    z = arStateMean.maxPossibleSpeed / 3.6f;
+                    long i = (location.getTime() - lastGoodLocation.getTime()) / 1000;
+                    s = "check 5 (erronious jump) " + x + " <= max(" + y + "," + z + ") * " + i + " ";
+                    r = x <= Math.max(y, z) * i;
+                    Utils.logD(TAG, s + r);
+                }
+            }
+        }
+
+        if (makePrevious || !r && fromMapActivity) {  // Update'им location !
+            long t=location.getTime();
+            location.set(lastGoodLocation); // Копируем предыдущую
+            location.setTime(t);
+            r = true;
+        }
+        if (!fromMapActivity) {
+            if (!r) {
+                if (nLocationNotOk == nLocationNotOkMax) {
+                    r = true;
+                    s = "check 6 (too much errors) " + nLocationNotOk + " ";
+                    Utils.logD(TAG, s + r);
+                } else nLocationNotOk ++;
+            };
+            if (r) nLocationNotOk = 0;
+        }
+
+        Utils.logD(TAG, "checkLocation result " + r);
         return r;
     }
 
     void addPoint(
             Location location, String debugInfo,
             int afKind, String afUri, String afFilePath, boolean isLastPoint) {
+        Utils.logD(TAG, "addPoint "+debugInfo+" "+Utils.loc2Str(location));
 
         if (!locationServiceIsReady) {
             if (isLastPoint) { // Еще не добавили первую точку, нажали back
                 stop(6);
+                return;
             }
-            return;
         }
 
         if (location != null &&  // Вызов из MapActivity, еще не проверена - проверяем
-                testLocation(location) >= 3) {
+                checkLocation(location, true)) {
             prevGoodLocation.set(lastGoodLocation);
             lastGoodLocation.set(location);
         }
 
         boolean pointIsAllreadyPresent =  // Новой точки не будет
-                Utils.getDistance(Utils.loc2LatLng(lastGoodLocation), Utils.loc2LatLng(prevGoodLocation)) <=
-                    Math.max(Integer.parseInt(walkSettings.getString("recording_min_meters_between_points", "10")),
-                        (lastGoodLocation.getAccuracy() + prevGoodLocation.getAccuracy()) * ACCURACY_FACTOR);
-/*
-In statistical terms, it is assumed that location errors are random with a normal distribution,
-so the 68% confidence circle represents one standard deviation.
-*/
+            Utils.loc2LatLng(prevGoodLocation).equals(Utils.loc2LatLng(lastGoodLocation));
+
         arStateMean.infereType(lastGoodLocation);
         final ARState arState2 = new ARState(arStateMean);
         // Инициализируем на следующий интервал
@@ -887,14 +1002,6 @@ so the 68% confidence circle represents one standard deviation.
                 }
             }
         } else {     // Прицепляем артефакты, появившиеся после прошлого раза
-/*
-            String[] what={
-                    MediaStore.MediaColumns._ID,
-                    MediaStore.MediaColumns.DATE_ADDED,
-                    MediaStore.MediaColumns.DATA,
-                    MediaStore.MediaColumns.BUCKET_DISPLAY_NAME, // Build.VERSION.SDK_INT > Q
-            };
-*/
             for (int afKind2 : new int[]{Walk.AFKIND_PHOTO, Walk.AFKIND_VIDEO, Walk.AFKIND_SPEECH}) {
                 Uri contentUri=
                         afKind2==Walk.AFKIND_PHOTO ?
@@ -904,24 +1011,6 @@ so the 68% confidence circle represents one standard deviation.
                                         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
                 String where=MediaStore.MediaColumns._ID + ">?";
                 String[] args = {"" + lastAFIds.get(afKind2)};
-/*
-                Cursor cursor;
-                try {
-                    cursor=getContentResolver().query(
-                            contentUri, what, where, args,
-                            MediaStore.MediaColumns._ID);
-                } catch (SQLiteException e) {  // В Android 9 в MediaStore.Audio.Media нет MediaStore.MediaColumns.BUCKET_DISPLAY_NAME
-                                                // И, вероятно, в остальных в младших версиях
-                    String[] what2={
-                            MediaStore.MediaColumns._ID,
-                            MediaStore.MediaColumns.DATE_ADDED,
-                            MediaStore.MediaColumns.DATA,
-                    };
-                    cursor=getContentResolver().query(
-                            contentUri, what2, where, args,
-                            MediaStore.MediaColumns._ID);
-                }
-*/
                 Cursor cursor = getContentResolver().query(
                             contentUri, null, where, args,  // Все поля
                             MediaStore.MediaColumns._ID);
@@ -930,12 +1019,15 @@ so the 68% confidence circle represents one standard deviation.
                         !flagFirst && cursor.moveToNext()) {
                     flagFirst=false;
 
+                    lastAFIds.set(afKind2,
+                        cursor.getLong(cursor.getColumnIndex(MediaStore.MediaColumns._ID)));
+
                     afUri=Uri.withAppendedPath(contentUri,
                             ""+cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns._ID))).toString();
                     afFilePath=cursor.getString(cursor.getColumnIndex(MediaStore.MediaColumns.DATA));
                     Utils.logD(TAG,"Artefact is being saved " + afFilePath);
 
-                    String bucket;
+                    String bucket; // Альбом
                     int i = cursor.getColumnIndex(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME);
                     if (i >= 0) {
                         bucket = cursor.getString(i);
@@ -969,8 +1061,6 @@ so the 68% confidence circle represents one standard deviation.
                     values.put(DB.KEY_AFDELETED, false);
                     DB.db.insert(DB.TABLE_AFS, null, values);
 
-                    lastAFIds.set(afKind2,
-                            cursor.getLong(cursor.getColumnIndex(MediaStore.MediaColumns._ID)));
                     Utils.logD(TAG, "The artefact is saved (2): #" + lastAFNumber + ", point #" + pointNumber +
                             " " + afKind2 + " " + afUri + " " + afFilePath+" "+new Date(timeAdded));
                 }
@@ -1011,9 +1101,8 @@ so the 68% confidence circle represents one standard deviation.
         DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID+"="+walkId, null);
 
         if (screenIsOn) {  // Нарисует все когда включится экран - экономим электроэнергию
-            LocalBroadcastManager.getInstance(this).sendBroadcast(  // Нарисует добавленную точку
-                    new Intent("DoInUIThread")
-                            .putExtra("action", "loadAndDraw"));
+            sendBroadcast(new Intent(MapActivity.GLOBAL_INTENT_FILTER)  // Нарисует добавленную точку
+                .putExtra("action", "loadAndDraw"));
         }
 
         if (toAdd) {
@@ -1044,19 +1133,21 @@ so the 68% confidence circle represents one standard deviation.
     }
 
     static Thread startMocking(
-            Utils.Consumer<Location> onLocationChanged, String threadName, int interval,
+            Utils.Consumer<Location> onLocationChanged, String threadName, int timeout,
             Location locationStart) {
         Utils.logD(TAG, "startMocking");
 
         final Location[] prevLocation={new Location("")};
         Thread mockerThread=new Thread(()->{
-            Random randomGenerator=new Random();
             Utils.logD(WalkRecorder.TAG, "Thread "+threadName+" started");
+
+            Random randomGenerator=new Random();
             Location location=new Location("mock provider");
-            boolean interrupted=false;
             double vLat=1e-5; // 1e-4 гр/сек = 13 м/сек = 47 км/час
             double vLng=1e-5;
             double k=1e-5;
+
+            boolean interrupted=false;
             while (!interrupted) {
                 long t=System.currentTimeMillis();
                 if (false) {//!Utils.isBetween(t-timeStart,15000,30000) { // Симулируем плохой сигнал
@@ -1066,7 +1157,7 @@ so the 68% confidence circle represents one standard deviation.
                         int r=randomGenerator.nextInt(100);
                         location.setLatitude(locationStart.getLatitude() + r * k);
                         location.setLongitude(locationStart.getLongitude() - r * k);
-                        k=1e-10 * interval;
+                        k=1e-10 * timeout;
                     } else {
                         location.setLatitude(location.getLatitude() +
                                 vLat * (t - location.getTime()) * 1e-3 +
@@ -1077,6 +1168,9 @@ so the 68% confidence circle represents one standard deviation.
                     }
                     if (prevLocation[0]!=null) {
                         location.setBearing(prevLocation[0].bearingTo(location));
+                        location.setSpeed(
+                            Utils.getDistance(Utils.loc2LatLng(location), Utils.loc2LatLng(prevLocation[0]))/
+                            (t - location.getTime()) * 1000);
                     }
                 }
                 location.setTime(t);
@@ -1087,10 +1181,11 @@ so the 68% confidence circle represents one standard deviation.
                     Utils.logD(TAG, "Thread "+threadName+": emulated location " + location);
                     onLocationChanged.accept(location);  // !!!
                 }
-                interrupted=Utils.sleep(interval, true);
+
+                interrupted=Utils.sleep(timeout, true);
             }
             Utils.logD(TAG, "Thread "+threadName+" is interrupted");
-        },threadName);
+        }, threadName);
         mockerThread.start();
         return mockerThread;
     }
@@ -1192,22 +1287,21 @@ Utils.logD(TAG, "isOurArtefact: "+t+" "+lastPointTime);
                     context.startActivity(intent);
                 } catch (Exception e) {
                     Toast.makeText(
-                            context, s + "is not installed",
-                            Toast.LENGTH_SHORT)
-                            .show();
+                        context, s + "is not installed",
+                        Toast.LENGTH_SHORT)
+                        .show();
                 }
             }
         }
     }
 
     static void switchDevelopersLog(boolean on, SharedPreferences settings) {
-        if (settings.getBoolean("developer_write_developers_log", false)) {
-            if (on) {
-                Utils.startDevelopersLog();
-            } else {
-                Utils.stopDevelopersLog();
-            }
+        if (on &&
+            (settings == null || settings.getBoolean("developer_write_developers_log", false))) {
+            Utils.startDevelopersLog();
+            return;
         }
+        if (!on) Utils.stopDevelopersLog();
     }
 }
 /*

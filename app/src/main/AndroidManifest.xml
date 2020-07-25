@@ -9,21 +9,22 @@
     <uses-permission android:name="android.permission.REORDER_TASKS" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
     <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
 
     <application
         android:name=".MyApplication"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="@string/app_name"
         android:exported="true"
-        android:theme="@style/AppTheme"
-        >
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/AppThemeGreen">
 
         <meta-data
             android:name="android.support.UI_OPTIONS"
@@ -37,49 +38,60 @@
 
         <activity
             android:name=".MainActivity"
-            android:label="@string/app_name"
             android:alwaysRetainTaskState="true"
-            android:launchMode="singleTop"
-            >
+            android:label="@string/app_name"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <activity
             android:name=".MapActivity"
-            android:label="@string/title_activity_maps"
-            >
+            android:label="@string/title_activity_maps">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.gf169.gfwalk.MainActivity" />
         </activity>
+
         <activity
-            android:name="com.gf169.gfwalk.EditTextActivity"
-            android:launchMode="singleTop"
-            />
+            android:name=".EditTextActivity"
+            android:launchMode="singleTop" />
+
         <activity
             android:name=".GalleryActivity"
             android:label="@string/title_activity_gallery"
-            android:windowSoftInputMode="stateHidden"
-            >
+            android:windowSoftInputMode="stateHidden">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="com.gf169.gfwalk.MainActivity" />
         </activity>
+
         <service
             android:name=".WalkRecorder"
             android:enabled="true"
-            android:exported="false">
+            android:exported="false"
+            android:foregroundServiceType="location">
+            <!-- android:process=":WalkRecorder" -->
         </service>
+
+        <service
+            android:name=".Watchdog"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location"
+            android:process=":Watchdog">
+        </service>
+
         <activity
             android:name=".SettingsActivity"
-            android:label="Settings"
-            >
-        </activity>
+            android:label="Settings" />
+
         <activity
             android:name=".HelpActivity"
             android:launchMode="singleTop" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileProvider"
@@ -89,7 +101,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_provider_paths" />
         </provider>
-
     </application>
 
 </manifest>
