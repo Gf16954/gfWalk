@@ -5,13 +5,62 @@
     android:layout_height="match_parent"
     tools:context=".MapActivity" >
 
-    <fragment xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:tools="http://schemas.android.com/tools"
+    <fragment
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/map"
         tools:context="com.gf169.gfwalk.MapActivity"
         android:name="com.google.android.gms.maps.SupportMapFragment" />
+
+    <RelativeLayout
+        android:id="@+id/buttons_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_centerVertical="true"
+        android:layout_marginRight="@dimen/map_buttons_margin_hor"
+        >
+
+        <ImageView
+            android:id="@+id/imageViewButtonMyPosition"
+            android:layout_width="@dimen/map_buttons_width"
+            android:layout_height="@dimen/map_buttons_width"
+            android:layout_marginTop="@dimen/map_buttons_margin_vert"
+            android:scaleType="fitXY"
+            android:clickable="true"
+            android:visibility="invisible"
+            android:src="@drawable/btn_my_position" />
+
+        <ImageView
+            android:id="@+id/imageViewButtonEntireRoute"
+            android:layout_width="@dimen/map_buttons_width"
+            android:layout_height="@dimen/map_buttons_width"
+            android:layout_below="@id/imageViewButtonMyPosition"
+            android:layout_marginTop="@dimen/map_buttons_margin_vert"
+            android:scaleType="fitXY"
+            android:clickable="true"
+            android:src="@drawable/btn_entire_route" />
+
+        <ImageView
+            android:id="@+id/imageViewButtonZoomIn"
+            android:layout_width="@dimen/map_buttons_width"
+            android:layout_height="@dimen/map_buttons_width"
+            android:layout_below="@id/imageViewButtonEntireRoute"
+            android:layout_marginTop="@dimen/map_buttons_margin_vert"
+            android:scaleType="fitXY"
+            android:clickable="true"
+            android:src="@drawable/btn_zoom_in" />
+
+        <ImageView
+            android:id="@+id/imageViewButtonZoomOut"
+            android:layout_width="@dimen/map_buttons_width"
+            android:layout_height="@dimen/map_buttons_width"
+            android:layout_below="@id/imageViewButtonZoomIn"
+            android:layout_marginTop="@dimen/map_buttons_margin_vert"
+            android:scaleType="fitXY"
+            android:clickable="true"
+            android:src="@drawable/btn_zoom_out" />
+    </RelativeLayout>
 
     <!-- Это занавес - принимает touch events во время анимации,
         и они до карты не доходят и анимация не прерывается -->

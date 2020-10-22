@@ -81,7 +81,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static androidx.core.content.FileProvider.getUriForFile;
 
 public class MapActivity extends AppCompatActivity implements
-    OnMapReadyCallback, GoogleMap.OnMapLongClickListener,
+    OnMapReadyCallback, GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener,
     GoogleMap.OnMapLoadedCallback, GoogleMap.OnMarkerClickListener,
     GoogleMap.OnInfoWindowClickListener,
     View.OnClickListener {
@@ -103,6 +103,8 @@ public class MapActivity extends AppCompatActivity implements
     static final String DIR_AUDIO = "gfWalk";  // Появится в разделе Files
 
     static final int SENSOR_DELAY = 100;
+    static final float ZOOM_INI = 17F; // Начальный для ActiveMode
+    static final float ZOOM_STEP = 0.3f;
 
     int walkId = -1;
     int mode;  // Входной
@@ -112,7 +114,6 @@ public class MapActivity extends AppCompatActivity implements
     Walk walk;
     Menu optionsMenu;
 
-    float zoom0 = 17F; // Начальный для ActiveMode
     boolean zoomAndFocusAreSet = false;
     String textFilePath;  // Файл текстового редактора
     int lastAction = 0;
@@ -165,12 +166,14 @@ public class MapActivity extends AppCompatActivity implements
     Compas compas;
     ImageView myPositionButton;
     ImageView entireRouteButton;
+    ImageView zoomInButton;
+    ImageView zoomOutButton;
     static final int COMPAS_VIEW_ID = 5;
 
     long lastBackPressedTime = 0;
 
-    SharedPreferences walkSettings;
     SharedPreferences globalSettings;
+    SharedPreferences walkSettings;
 
     float minPossibleSpeed = -1;
     int currentLocationRequestInterval = -1;
@@ -218,7 +221,7 @@ public class MapActivity extends AppCompatActivity implements
         Utils.setDefaultUncaughtExceptionHandler(() -> {  // Чтобы при отвале все культурно убивало
             Log.e(TAG, "Uncaught Exception");
 
-            stopService(6);
+            if (WalkRecorder.isWorking) stopService(6);
 
             if (locationListener != null) {  // Надо?
                 switchWhereAmI(false, false);
@@ -337,7 +340,7 @@ public class MapActivity extends AppCompatActivity implements
             MyMarker.mapActivity = null;
             curActivity = null;
             if (isFinishing()) {
-                stopService(7);
+                if (WalkRecorder.isWorking) stopService(7);
             }
         }
     }
@@ -405,6 +408,7 @@ public class MapActivity extends AppCompatActivity implements
             public View getInfoContents(Marker arg0) {
                 return null;
             }
+
             @Override
             public View getInfoWindow(Marker marker) {
                 LayoutInflater inflater = LayoutInflater.from(getApplicationContext());
@@ -417,8 +421,9 @@ public class MapActivity extends AppCompatActivity implements
 
         walk = new Walk(this);
         walk.loadAndDraw(true); // Загрузка из базы и рисование - асинхронно, в отдельной thread
-        setTitle(mode == MODE_ACTIVE ? "#"+walkId :
+        setTitle(mode == MODE_ACTIVE ? "#" + walkId :
             String.format(getResources().getString(R.string.format_walk_header), walkId));
+        map.setOnMapClickListener(this);
         map.setOnMapLongClickListener(this);
         map.setOnMapLoadedCallback(this);  // Здесь установим масштаб и фокус
         map.setOnMarkerClickListener(this);
@@ -430,14 +435,14 @@ public class MapActivity extends AppCompatActivity implements
 
     @Override
     public void onMapLoaded() { // Не раньше, чем будет показана !!! Ни фига - иногда до onMappReady!
-                                // А иногда вообще не вызывается
+        // А иногда вообще не вызывается
         Utils.logD(TAG, "onMapLoaded");
 /* Callback interface for when the map has finished rendering. This occurs after all tiles required
 to render the map have been fetched, and all labeling is complete. This event will not fire if the
 map never loads due to connectivity issues, or if the map is continuously changing and never completes
 loading due to the user constantly interacting with the map.
 */
-        addButtons();  // API 24 - только здесь нарисован компас
+//        addButtons();  // API 24 - только здесь нарисован компас
 //        walk.mapIsLoaded = true; // Просто понимаем флаг - loadAndDraw увидит и вернет сюда просьбу установить zoom
     }
 
@@ -590,6 +595,11 @@ loading due to the user constantly interacting with the map.
     }
 
     @Override
+    public void onMapClick(LatLng location) {
+//        animateCamera(CameraUpdateFactory.zoomIn());
+    }
+
+    @Override
     public void onMapLongClick(LatLng location) {
         if (pointsAreLoaded) {
             Utils.logD(TAG, "Going into gallery");
@@ -688,7 +698,7 @@ loading due to the user constantly interacting with the map.
             handler.postDelayed(() -> {
                 if (!isFinishing())
                     Toast.makeText(this, getResources().getString(R.string.press_back_once_more),
-                        Toast.LENGTH_SHORT).show();
+                        Toast.LENGTH_LONG).show();
             }, dt + 10);
             lastBackPressedTime = System.currentTimeMillis();
             return true;
@@ -696,6 +706,25 @@ loading due to the user constantly interacting with the map.
         return false;
     }
 
+    private void addButtons() {
+        if (buttonsAreAdded)
+            return;
+        Utils.logD(TAG, "addButtons");
+
+        myPositionButton = findViewById(R.id.imageViewButtonMyPosition);
+        myPositionButton.setVisibility(whereAmIIsOn ? View.VISIBLE : View.INVISIBLE);
+        myPositionButton.setOnClickListener(this);
+        entireRouteButton = findViewById(R.id.imageViewButtonEntireRoute);
+        entireRouteButton.setOnClickListener(this);
+        zoomInButton = findViewById(R.id.imageViewButtonZoomIn);
+        zoomInButton.setOnClickListener(this);
+        zoomOutButton = findViewById(R.id.imageViewButtonZoomOut);
+        zoomOutButton.setOnClickListener(this);
+
+        buttonsAreAdded = true;
+    }
+
+/*
     private void addButtons() {
         if (buttonsAreAdded) return;
         Utils.logD(TAG, "addButtons");
@@ -735,6 +764,7 @@ loading due to the user constantly interacting with the map.
         buttonsAreAdded = true;
     }
 
+*/
     void enterResumeMode() { // До момента нарисования первой новой точки
         Utils.logD(TAG, "enterResumeMode");
 
@@ -763,7 +793,7 @@ loading due to the user constantly interacting with the map.
 
         mode = MODE_ACTIVE;
 
-        setTitle("#"+walkId);
+        setTitle("#" + walkId);
         updateOptionsMenu();
         MainActivity.pleaseDo = MainActivity.pleaseDo + " refresh selected item";
     }
@@ -1001,7 +1031,7 @@ loading due to the user constantly interacting with the map.
             Utils.logD(TAG, "Got a global message - " + action);
 
             switch (action) {
-                case "stopRecording" : // Из notification WalkRecorder
+                case "stopRecording": // Из notification WalkRecorder
                     enterPassiveMode();
 
                     break;
@@ -1080,7 +1110,7 @@ loading due to the user constantly interacting with the map.
 
         if (curLocation != null) {
             animateCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition(
-                Utils.loc2LatLng(curLocation), zoom0, 0, 0)));
+                Utils.loc2LatLng(curLocation), ZOOM_INI, 0, 0)));
         } else if (walk.points.size() > 0) {
             showEntireRoute();
             zoomAndFocusAreSet = true;
@@ -1195,9 +1225,9 @@ loading due to the user constantly interacting with the map.
         if (curPosMarkerKindNew != curPosMarkerKind) {
             curPosMarkerKind = curPosMarkerKindNew;
             int markerKind =
-                    curPosMarkerKind == KIND_MARKER_POSITION_ONLY ? MO_CUR_POS_POSITION_ONLY :
-                        curPosMarkerKind == KIND_MARKER_WITH_DIRECTION_1 ? MO_CUR_POS_WITH_DIRECTION_1 :
-                            MO_CUR_POS_WITH_DIRECTION_2;
+                curPosMarkerKind == KIND_MARKER_POSITION_ONLY ? MO_CUR_POS_POSITION_ONLY :
+                    curPosMarkerKind == KIND_MARKER_WITH_DIRECTION_1 ? MO_CUR_POS_WITH_DIRECTION_1 :
+                        MO_CUR_POS_WITH_DIRECTION_2;
             MyMarker.drawMarker(map, curPosMarkers, 0,  // 0! Потому что одновременно может быть только 1
                 markerKind, curLocation, title, null,
                 null, null, null,
@@ -1262,7 +1292,7 @@ loading due to the user constantly interacting with the map.
 //                    1000f / (curLocation.getTime() - prevLocation.getTime()) / NUMBER_OF_POINTS_IN_TRACE : -1,
                 // Длина следа = расстояние между точками
                 1f / Integer.parseInt(walkSettings.getString("recording_max_seconds_between_points", "60")),
-            true, false);
+                true, false);
         }
     }
 
@@ -1287,6 +1317,10 @@ loading due to the user constantly interacting with the map.
             }
         } else if (v == entireRouteButton) {
             showEntireRoute();
+        } else if (v == zoomInButton) {
+            animateCamera(CameraUpdateFactory.zoomIn());
+        } else if (v == zoomOutButton) {
+            animateCamera(CameraUpdateFactory.zoomOut());
         }
     }
 
@@ -1429,6 +1463,7 @@ loading due to the user constantly interacting with the map.
                 googleApiClient.connect();
             }
             if (liveMapIsOn) turnCompasOn(true);
+
         } else {
             MyMarker.killMarker(curPosMarkers, 0);
             curPosMarkerKind = -1;
@@ -1603,11 +1638,11 @@ loading due to the user constantly interacting with the map.
 
     @SuppressLint("RestrictedApi")
     public void openOptionsMenuDeferred() {
-        if (true) return;
+if (true) return;
 
         // handler.post(this::openOptionsMenu); Не работает
         handler.postDelayed(() -> {
-                Log.d(TAG,"openOptionsMenu");
+            Log.d(TAG, "openOptionsMenu");
 
 /* Не работает
                 openOptionsMenu();

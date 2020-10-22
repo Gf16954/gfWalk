@@ -6,6 +6,9 @@
     <string name="action_settings">Настройки</string>
     <string name="action_filter">Фильтр</string>
     <string name="action_new">Начать прогулку</string>
+    <string name="action_help">Справка</string>
+    <string name="action_app_properties">Свойства приложения</string>
+    <string name="action_privacy_policy">Политика конфиденциальности</string>
     <string name="action_empty_bin">Очистить корзину</string>
     <string name="format_walks_deleted">Удалено прогулок: %d</string>
     <string name="format_walk_number_X_is_deleted">Прогулка #%d удалена</string>
@@ -14,7 +17,6 @@
     <string name="format_file_has_gone">Файл %s пропал</string>
     <string name="format_could_not_create_file">Файл %s не создался</string>
     <string name="format_walk_has_gone">Прогулка #%d пропала!</string>
-    <string name="action_help">Справка</string>
 
     <string name="title_activity_maps">Прогулка #</string>
     <string name="action_camera">Фото</string>
@@ -31,8 +33,7 @@
     <string name="action_show_trace">Показывать след</string>
     <string name="action_map_type_satelite">Спутник</string>
     <string name="action_map_type_terrain">Рельеф</string>
-    <string name="action_privacy_policy">Политика конфиденциальности</string>
-    <string name="action_whereami">Показывать текущее положение</string>
+    <string name="action_whereami">Мальчик-с-пальчик</string>
     <string name="action_live_map">Живая карта</string>
     <string name="action_autofocus">Автофокус</string>
 
@@ -163,4 +164,5 @@
     <string name="press_plus">Нажмите + в строке меню чтобы начать запись прогулки</string>
     <string name="goodbye">До свиданья:( Не могу работать без разрешений</string>
     <string name="press_back_once_more">Для прекращения записи прогулки нажмите Назад дважды</string>
+    <string name="launch_by_icon">"Запустите программу иконкой на рабочем столе, пожалуйста"</string>
 </resources>

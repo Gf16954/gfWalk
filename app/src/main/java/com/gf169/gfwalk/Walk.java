@@ -510,7 +510,7 @@ public class Walk {
                 public void run() {
                     map.addPolyline(new PolylineOptions()
                             .add(Utils.loc2LatLng(point.location), Utils.loc2LatLng(prevPoint.location))
-                            .width(Utils.dpyToPx(mapActivity.getResources().getInteger(R.integer.line_width)))
+                            .width(Utils.dpyToPx(mapActivity.getResources().getInteger(R.integer.map_line_width)))
                             .endCap(new RoundCap())
                             .pattern(getLinePattern(point))
                             .color(getLineColor(point))
@@ -543,7 +543,7 @@ public class Walk {
 
     private List<PatternItem> getLinePattern(Point point) {
 //        PatternItem[] patterns={new Dot()};
-        int w=Utils.dpyToPx(mapActivity.getResources().getInteger(R.integer.line_width));
+        int w=Utils.dpyToPx(mapActivity.getResources().getInteger(R.integer.map_line_width));
         PatternItem[] patterns={new Dash(w*2), new Gap(w)};
         return point.flagResume ? Arrays.asList(patterns) : null;
     }

@@ -7,6 +7,7 @@ import android.app.Activity;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.Html;
+import android.text.method.LinkMovementMethod;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -25,10 +26,11 @@ public class HelpActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_help);
-        setTitle(getResources().getString(R.string.app_name)+
-                " "+BuildConfig.VERSION_NAME+"("+BuildConfig.VERSION_CODE+")"+
-                " "+getResources().getString(R.string.app_copyright));
-        ((TextView) findViewById(R.id.textViewHelp)).setText(
-                Html.fromHtml(getResources().getString(R.string.help)));
+        setTitle(getResources().getString(R.string.app_name) +
+            " " + BuildConfig.VERSION_NAME + "(" + BuildConfig.VERSION_CODE + ")" +
+            " " + getResources().getString(R.string.app_copyright));
+        TextView textView = findViewById(R.id.textViewHelp);
+        textView.setText(Html.fromHtml(getResources().getString(R.string.help)));
+        textView.setMovementMethod(LinkMovementMethod.getInstance());
     }
 }

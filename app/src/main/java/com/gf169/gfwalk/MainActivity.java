@@ -1,5 +1,6 @@
 package com.gf169.gfwalk;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.DialogFragment;
@@ -15,7 +16,10 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.provider.Settings;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -28,9 +32,11 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -38,20 +44,20 @@ import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 
 public class MainActivity extends AppCompatActivity {
-    static final String TAG="gfMainActivity";
+    static final String TAG = "gfMainActivity";
 
-    static SimpleDateFormat dateFormat=new SimpleDateFormat();
+    static SimpleDateFormat dateFormat = new SimpleDateFormat();
     static TimeZone timeZone;
 
-    static final String FILTER_STR_NOT_IN_BIN ="ifnull("+DB.KEY_DELETED+",0)=0";
-    static final String FILTER_STR_IN_BIN ="ifnull("+DB.KEY_DELETED+",0)=1";
-    String filterStr=FILTER_STR_NOT_IN_BIN;
+    static final String FILTER_STR_NOT_IN_BIN = "ifnull(" + DB.KEY_DELETED + ",0)=0";
+    static final String FILTER_STR_IN_BIN = "ifnull(" + DB.KEY_DELETED + ",0)=1";
+    String filterStr = FILTER_STR_NOT_IN_BIN;
     Bundle filterParms;
 
     ListView walklist;
     int walkId;
     int itemCount;
-    int selectedPos=-1;
+    int selectedPos = -1;
     View selectedView;
     Bitmap[] updatedIcons;
     boolean[] updatedIcons2;
@@ -60,33 +66,74 @@ public class MainActivity extends AppCompatActivity {
     int firstVisiblePos;
     Menu optionsMenu;
 
-    static final int SETTINGS_REQUEST_CODE=9;
-    static String pleaseDo="";  // Просьбы других activity к этой сделать что-нибудь
+    static final int SETTINGS_REQUEST_CODE = 9;
+    static String pleaseDo = "";  // Просьбы других activity к этой сделать что-нибудь
 
     SharedPreferences globalSettings;
 
     int selectedItemBackground;
     int normalItemBackground;
 
+/*
+    @Override
+    protected void onNewIntent(Intent intent) {
+        Utils.logD(TAG, "onNewIntent");
+        super.onNewIntent(intent);
+
+        StringBuilder s = new StringBuilder("\n");
+        for (CharSequence c : intent.getExtras().keySet()) s.append(c).append(" ");
+        Utils.logD(TAG, "onNewIntent extras" + s);
+        Utils.logD(TAG, "onNewIntent flags " + intent.getFlags() + " " + (intent.getFlags() & FLAG_ACTIVITY_REORDER_TO_FRONT));
+        Utils.FALogEvent(TAG + "_onNewIntent", "flags",
+            intent.getFlags() + "_" + (intent.getFlags() & FLAG_ACTIVITY_REORDER_TO_FRONT) + "_" +
+                (intent.getFlags() & FLAG_ACTIVITY_CLEAR_TOP));
+    }
+*/
+
     protected void onCreate(Bundle savedInstanceState) {
         Utils.logD(TAG, "onCreate " + this + " DisplayMetrics.density " + getResources().getDisplayMetrics());
 
-        globalSettings=SettingsActivity.getCurrentWalkSettings(this, -1);
+        globalSettings = SettingsActivity.getCurrentWalkSettings(this, -1);
+
+        int versionCode = globalSettings.getInt("versionCode", 0);
         setTheme(getThemeX(globalSettings));
 
         super.onCreate(savedInstanceState);
 
-        MyMarker.curActivity=this;
-        WalkFilterDialogFragment.mainActivity=this;
+/*
+        if (versionCode != BuildConfig.VERSION_CODE) {
+            Utils.logD(TAG, "onCreate recreating");
+            globalSettings.edit().putInt("versionCode", BuildConfig.VERSION_CODE).commit();
+//            recreate();
+            finish();
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        }
+*/
+
+        Uri whoCalled = ActivityCompat.getReferrer(this);
+        Utils.logD(TAG, "whoCalled " + (whoCalled == null ? "?" : whoCalled.toString()));
+        if (whoCalled != null && whoCalled.toString().endsWith("packageinstaller")) {
+            (new Handler()).post(() -> {
+                Toast.makeText(this,
+                    getResources().getText(R.string.launch_by_icon), Toast.LENGTH_LONG).show();
+                finish();
+            });
+            return;
+        }
+
+        MyMarker.curActivity = this;
+        WalkFilterDialogFragment.mainActivity = this;
 
         setContentView(R.layout.activity_main);
 
         if (savedInstanceState != null) {
-            filterParms=savedInstanceState.getBundle("filterParms");
-            filterStr=savedInstanceState.getString("filterStr");
-            walkId=savedInstanceState.getInt("walkId");
-            selectedPos=savedInstanceState.getInt("selectedPos");
-            firstVisiblePos=savedInstanceState.getInt("firstVisiblePos");
+            filterParms = savedInstanceState.getBundle("filterParms");
+            filterStr = savedInstanceState.getString("filterStr");
+            walkId = savedInstanceState.getInt("walkId");
+            selectedPos = savedInstanceState.getInt("selectedPos");
+            firstVisiblePos = savedInstanceState.getInt("firstVisiblePos");
         }
 
         TypedValue value = new TypedValue();
@@ -117,12 +164,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onSaveInstanceState(Bundle savedInstanceState) {
         Utils.logD(TAG, "onSaveInstanceState");
 
-            super.onSaveInstanceState(savedInstanceState);
-            savedInstanceState.putBundle("filterParms", filterParms);
-            savedInstanceState.putString("filterStr", filterStr);
-            savedInstanceState.putInt("walkId", walkId);
-            savedInstanceState.putInt("selectedPos", selectedPos);
-            savedInstanceState.putInt("firstVisiblePos", firstVisiblePos);
+        super.onSaveInstanceState(savedInstanceState);
+        savedInstanceState.putBundle("filterParms", filterParms);
+        savedInstanceState.putString("filterStr", filterStr);
+        savedInstanceState.putInt("walkId", walkId);
+        savedInstanceState.putInt("selectedPos", selectedPos);
+        savedInstanceState.putInt("firstVisiblePos", firstVisiblePos);
     }
 
     static int getThemeX(SharedPreferences settings) {
@@ -143,108 +190,111 @@ public class MainActivity extends AppCompatActivity {
         String[] arrayColumns;
         SimpleCursorAdapter adapter;
 
-        walklist=(ListView) findViewById(R.id.listViewWalks);
+        walklist = (ListView) findViewById(R.id.listViewWalks);
 
-        arrayViewIDs=new int[]{R.id.imageViewIcon, R.id.buttonWalkId,
-                R.id.textViewString1, R.id.textViewString2, R.id.textViewString3};
-        arrayColumns=new String[]{DB.KEY_ICON, DB.KEY_ID,
-                DB.KEY_STARTTIME, DB.KEY_COMMENT, DB.KEY_STARTPLACE,
-                DB.KEY_DURATION, DB.KEY_LENGTH, DB.KEY_TIMEZONE, DB.KEY_ICONAFID,
-                DB.KEY_DELETED
+        arrayViewIDs = new int[]{R.id.imageViewIcon, R.id.buttonWalkId,
+            R.id.textViewString1, R.id.textViewString2, R.id.textViewString3};
+        arrayColumns = new String[]{DB.KEY_ICON, DB.KEY_ID,
+            DB.KEY_STARTTIME, DB.KEY_COMMENT, DB.KEY_STARTPLACE,
+            DB.KEY_DURATION, DB.KEY_LENGTH, DB.KEY_TIMEZONE, DB.KEY_ICONAFID,
+            DB.KEY_DELETED
         };
-        final Cursor cursor=DB.db.query(DB.TABLE_WALKS, arrayColumns,
-                filterStr, null, null, null, DB.KEY_ID+" DESC");
-        adapter=new SimpleCursorAdapter(this, R.layout.listviewitem_walk, cursor,
-                arrayColumns, arrayViewIDs, CursorAdapter.FLAG_REGISTER_CONTENT_OBSERVER);  // Асинхронный
+        final Cursor cursor = DB.db.query(DB.TABLE_WALKS, arrayColumns,
+            filterStr, null, null, null, DB.KEY_ID + " DESC");
+        adapter = new SimpleCursorAdapter(this, R.layout.listviewitem_walk, cursor,
+            arrayColumns, arrayViewIDs, CursorAdapter.FLAG_REGISTER_CONTENT_OBSERVER);  // Асинхронный
 
         adapter.setViewBinder(new SimpleCursorAdapter.ViewBinder() {
             public boolean setViewValue(final View view, final Cursor cursor, int columnIndex) {
-                final int position=cursor.getPosition();
-                Utils.logD(TAG, "setViewValue " +position + " " + columnIndex );
+                final int position = cursor.getPosition();
+                Utils.logD(TAG, "setViewValue " + position + " " + columnIndex);
 
                 String s;
-                if (columnIndex==cursor.getColumnIndex(DB.KEY_ICON)) {
-                    Utils.logD(TAG, "setViewValue "+position+" "+
-                            cursor.getLong(cursor.getColumnIndex(DB.KEY_ID))+" "+view.getParent());
-                    byte[] s2=null;
+                if (columnIndex == cursor.getColumnIndex(DB.KEY_ICON)) {
+                    Utils.logD(TAG, "setViewValue " + position + " " +
+                        cursor.getLong(cursor.getColumnIndex(DB.KEY_ID)) + " " + view.getParent());
+                    byte[] s2 = null;
                     if (updatedIcons2[position]) {
                         ((ImageView) view).setImageBitmap(updatedIcons[position]);
                     } else {
-                        s2=cursor.getBlob(columnIndex);
-                        if (s2==null) { // Еще не сформирована
+                        s2 = cursor.getBlob(columnIndex);
+                        if (s2 == null) { // Еще не сформирована
                             updatedIcons[position] =
                                 formIcon(cursor.getLong(cursor.getColumnIndex(DB.KEY_ID)),
-                                         cursor.getLong(cursor.getColumnIndex(DB.KEY_ICONAFID)));
+                                    cursor.getLong(cursor.getColumnIndex(DB.KEY_ICONAFID)));
                             updatedIcons2[position] = true; // Правильная иконка в updatedIcons
                             ((ImageView) view).setImageBitmap(updatedIcons[position]);
-                        } else if (s2.length<=1) { // Артефактов нет - живет без иконки
+                        } else if (s2.length <= 1) { // Артефактов нет - живет без иконки
                             ((ImageView) view).setImageDrawable(null);
                         } else { // Уже сформирована, в т.ч. пустая (если нет артефактов) - массив из одного символа 0
                             ((ImageView) view).setImageBitmap(
-                                    BitmapFactory.decodeByteArray(s2, 0, s2.length));
+                                BitmapFactory.decodeByteArray(s2, 0, s2.length));
                         }
                     }
-                    View v=(View) view.getParent();
+                    View v = (View) view.getParent();
                     v.setTag(R.id.tag_walkIsDeleted,
-                            cursor.getInt(cursor.getColumnIndex(DB.KEY_DELETED))==1 ? "*" : null);
+                        cursor.getInt(cursor.getColumnIndex(DB.KEY_DELETED)) == 1 ? "*" : null);
                     v.setTag(R.id.tag_walkIsSelected,
-                            position == selectedPos ? "*" : null);
+                        position == selectedPos ? "*" : null);
                     paintItem(v, position == selectedPos);
 
-                    if (updatedIcons[position]!=null | (s2!=null && s2.length>1)) {
-                                                        // Если скобок нет, отваливается при s2=null
+                    if (updatedIcons[position] != null | (s2 != null && s2.length > 1)) {
+                        // Если скобок нет, отваливается при s2=null
                         view.setOnClickListener(new View.OnClickListener() {
                             public void onClick(View v) {
                                 selectItem(position, (View) view.getParent());
                                 MapActivity.showGallery(MainActivity.this,
-                                        new Walk(MainActivity.this, walkId),
-                                        null, null, -2, MapActivity.MODE_PASSIVE, false);
+                                    new Walk(MainActivity.this, walkId),
+                                    null, null, -2, MapActivity.MODE_PASSIVE, false);
                             }
                         });
                     } else {
                         view.setClickable(false);  // Нужно!
-                    };
+                    }
+                    ;
                     return true;
-                } else if (columnIndex==cursor.getColumnIndex(DB.KEY_ID)) {  // Кнопка с номером прогулки
-                    s="#"+cursor.getLong(columnIndex);
+                } else if (columnIndex == cursor.getColumnIndex(DB.KEY_ID)) {  // Кнопка с номером прогулки
+                    s = "#" + cursor.getLong(columnIndex);
                     ((Button) view).setText(s);
                     view.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View v) {
                             selectItem(position, (View) view.getParent());
-                            firstVisiblePos=walklist.getFirstVisiblePosition();  // >-1 - признак ухода в диалог
+                            firstVisiblePos = walklist.getFirstVisiblePosition();  // >-1 - признак ухода в диалог
                             walkInfo(MainActivity.this, walkId, MapActivity.MODE_PASSIVE); // В диалог
                         }
                     });
                     return true;
-                } else if (columnIndex==cursor.getColumnIndex(DB.KEY_STARTTIME)) {
-                    timeZone=TimeZone.getTimeZone(cursor.getString(
-                            cursor.getColumnIndex(DB.KEY_TIMEZONE)));
+                } else if (columnIndex == cursor.getColumnIndex(DB.KEY_STARTTIME)) {
+                    timeZone = TimeZone.getTimeZone(cursor.getString(
+                        cursor.getColumnIndex(DB.KEY_TIMEZONE)));
                     dateFormat.setTimeZone(timeZone);
-                    s=Utils.dateStr(cursor.getLong(columnIndex), dateFormat);
+                    s = Utils.dateStr(cursor.getLong(columnIndex), dateFormat);
                     ((TextView) view).setText(s.split(" ")[0]);  // 14.11.15
                     return true;
-                } else if (columnIndex==cursor.getColumnIndex(DB.KEY_COMMENT)) {
-                    if ((s=updatedComments[position])==null) {
-                        s=cursor.getString(columnIndex);
+                } else if (columnIndex == cursor.getColumnIndex(DB.KEY_COMMENT)) {
+                    if ((s = updatedComments[position]) == null) {
+                        s = cursor.getString(columnIndex);
                         if (s.isEmpty()) {
-                            s=formDesc(cursor);  // Продолжительность и длина - 2:13 5.456km
+                            s = formDesc(cursor);  // Продолжительность и длина - 2:13 5.456km
                         }
                     }
                     if (s.equals(formDesc(cursor))) {
 //                        ((TextView) view).setTextColor(getResources().getColor(R.color.fragment_textColor));
-                        ((TextView) view).setTypeface(null, Typeface.NORMAL);;
+                        ((TextView) view).setTypeface(null, Typeface.NORMAL);
+                        ;
                     } else {
 //                        ((TextView) view).setTextColor(getResources().getColor(R.color.fragment_textColor2));
-                        ((TextView) view).setTypeface(null, Typeface.BOLD);;
+                        ((TextView) view).setTypeface(null, Typeface.BOLD);
+                        ;
                     }
                     ((TextView) view).setText(s);
                     return true;
-                } else if (columnIndex==cursor.getColumnIndex(DB.KEY_STARTPLACE)) {
+                } else if (columnIndex == cursor.getColumnIndex(DB.KEY_STARTPLACE)) {
                     ((TextView) view).setText(secondStr(
-                            cursor.getString(cursor.getColumnIndex(DB.KEY_TIMEZONE)),
-                            cursor.getLong(cursor.getColumnIndex(DB.KEY_STARTTIME)),
-                            Utils.nvl(updatedStartPlaces[position],
-                                    cursor.getString(cursor.getColumnIndex(DB.KEY_STARTPLACE)))));
+                        cursor.getString(cursor.getColumnIndex(DB.KEY_TIMEZONE)),
+                        cursor.getLong(cursor.getColumnIndex(DB.KEY_STARTTIME)),
+                        Utils.nvl(updatedStartPlaces[position],
+                            cursor.getString(cursor.getColumnIndex(DB.KEY_STARTPLACE)))));
                     return true;
                 }
                 return true;
@@ -256,7 +306,7 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> arg0, View v, int position, long arg3) {
                 selectItem(position, v);
                 showWalkOnMap(MainActivity.this, walkId, MapActivity.MODE_PASSIVE,
-                        cursor.getString(cursor.getColumnIndex(DB.KEY_TIMEZONE)), false, -1);
+                    cursor.getString(cursor.getColumnIndex(DB.KEY_TIMEZONE)), false, -1);
             }
         });
         walklist.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
@@ -268,27 +318,27 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        itemCount=cursor.getCount();
-        updatedIcons=new Bitmap[itemCount];
-        updatedIcons2=new boolean[itemCount];
-        updatedComments=new String[itemCount];
-        updatedStartPlaces=new String[itemCount];
-        selectedView=null;
-        if (selectedPos>=itemCount) {  // После удаления
-            selectedPos=itemCount-1;
+        itemCount = cursor.getCount();
+        updatedIcons = new Bitmap[itemCount];
+        updatedIcons2 = new boolean[itemCount];
+        updatedComments = new String[itemCount];
+        updatedStartPlaces = new String[itemCount];
+        selectedView = null;
+        if (selectedPos >= itemCount) {  // После удаления
+            selectedPos = itemCount - 1;
         }
 
-        if (optionsMenu!=null) {
+        if (optionsMenu != null) {
             invalidateOptionsMenu();
         }
         findViewById(R.id.textViewEmptyScreen).setVisibility(
-                itemCount==0 && FILTER_STR_NOT_IN_BIN.equals(filterStr) ? View.VISIBLE : View.INVISIBLE);
+            itemCount == 0 && FILTER_STR_NOT_IN_BIN.equals(filterStr) ? View.VISIBLE : View.INVISIBLE);
     }
 
     void paintItem(View view, boolean isSelected) {
         int color = isSelected ? selectedItemBackground : normalItemBackground;
-        color=view.getTag(R.id.tag_walkIsDeleted)!=null ?  // А это по tag'у !
-                color - getResources().getColor(R.color.deletedDelta) : color; // Все темнее
+        color = view.getTag(R.id.tag_walkIsDeleted) != null ?  // А это по tag'у !
+            color - getResources().getColor(R.color.deletedDelta) : color; // Все темнее
         view.setBackgroundTintMode(null);  // Очищает tint из theme, иначе не перекрашивается
         view.setBackgroundColor(color);
     }
@@ -297,7 +347,7 @@ public class MainActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         Utils.logD(TAG, "onCreateOptionsMenu");
 
-        MenuInflater inflater=getMenuInflater();
+        MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.main_activity_actions, menu);
 
         if (filterStr.equals(FILTER_STR_NOT_IN_BIN)) {
@@ -307,51 +357,59 @@ public class MainActivity extends AppCompatActivity {
         } else if (filterStr.contains(FILTER_STR_IN_BIN)) {
             menu.findItem(R.id.action_filter).setIcon(R.drawable.ic_action_filter_red);
             menu.findItem(R.id.action_new).setVisible(false);
-            menu.findItem(R.id.action_empty_bin).setVisible(itemCount>0);
+            menu.findItem(R.id.action_empty_bin).setVisible(itemCount > 0);
         } else {
             menu.findItem(R.id.action_filter).setIcon(R.drawable.ic_action_filter_green);
             menu.findItem(R.id.action_new).setVisible(true);
             menu.findItem(R.id.action_empty_bin).setVisible(false);
         }
-        optionsMenu=menu;
+        optionsMenu = menu;
         return super.onCreateOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        int id=item.getItemId();
-        if (id==R.id.action_new) { // Новая прогулка
-            if ((walkId=Walk.create())>0) {
-                firstVisiblePos=0;
-                selectedPos=0;
-                pleaseDo="refresh entire list, restore selection";
+        int id = item.getItemId();
+        if (id == R.id.action_new) { // Новая прогулка
+            if ((walkId = Walk.create()) > 0) {
+                firstVisiblePos = 0;
+                selectedPos = 0;
+                pleaseDo = "refresh entire list, restore selection";
                 Utils.FALogEvent("new_walk", "walkId", walkId + "");
 
                 showWalkOnMap(MainActivity.this, walkId, MapActivity.MODE_RESUME,
-                        TimeZone.getDefault().getID(), false, -1);
+                    TimeZone.getDefault().getID(), false, -1);
             }
         }
-        if (id==R.id.action_settings) {
-            settings(this,-1);
+        if (id == R.id.action_settings) {
+            settings(this, -1);
             return true;
         }
-        if (id==R.id.action_filter) {
-            firstVisiblePos=walklist.getFirstVisiblePosition();  // >-1 - признак ухода в диалог
+        if (id == R.id.action_filter) {
+            firstVisiblePos = walklist.getFirstVisiblePosition();  // >-1 - признак ухода в диалог
             walkFilter();
             return true;
         }
-        if (id==R.id.action_empty_bin) {
-            selectedPos=-1;
+        if (id == R.id.action_empty_bin) {
+            selectedPos = -1;
             WalkInfoDialogFragment.walkDelete(this, filterStr, walklist.getChildAt(0),
-                    null, itemCount);
+                null, itemCount);
             return true;
         }
-        if (id==R.id.action_help) {
+        if (id == R.id.action_help) {
             showHelp(this);
             return true;
         }
-        if (id==R.id.action_privacy_policy) {
+        if (id == R.id.action_privacy_policy) {
             showPrivacyPolicy(this);
+            return true;
+        }
+        if (id == R.id.action_app_properties) {
+            try {
+                showAppDetails(this);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -385,20 +443,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onRestart() {
+        Utils.logD(TAG, "onRestart");
+        super.onRestart();
+    }
+
+    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
-        Utils.logD(TAG, "onWindowFocusChanged "+" "+hasFocus+
-                " "+selectedPos+" "+firstVisiblePos+" "+pleaseDo);
+        Utils.logD(TAG, "onWindowFocusChanged " + " " + hasFocus +
+            " " + selectedPos + " " + firstVisiblePos + " " + pleaseDo);
 
         super.onWindowFocusChanged(hasFocus);
 
         if (!hasFocus) {
 //            firstVisiblePos=walklist.getFirstVisiblePosition();
-        } else if (firstVisiblePos<0) { // Первый после onCreate
+        } else if (firstVisiblePos < 0) { // Первый после onCreate
             // Android при перевороте оставляет на месте первую строку, и строка в конце может
             // пропасть из виду - возвращаем (делает ее первой. Или не первой, но показывает !)
-            if (selectedPos>=0 &&
-                    (selectedPos<walklist.getFirstVisiblePosition() ||
-                            selectedPos>walklist.getLastVisiblePosition())) {
+            if (selectedPos >= 0 &&
+                (selectedPos < walklist.getFirstVisiblePosition() ||
+                    selectedPos > walklist.getLastVisiblePosition())) {
                 walklist.setSelection(selectedPos);
             }
         } else { // После возврата из другой Activity или диалога
@@ -406,28 +470,28 @@ public class MainActivity extends AppCompatActivity {
             if (!pleaseDo.equals("")) {
                 doAfterReturn();
             }
-            firstVisiblePos=-1;
+            firstVisiblePos = -1;
         }
     }
 
     void doAfterReturn() {
-        Utils.logD(TAG, "doAfterReturn "+pleaseDo);
+        Utils.logD(TAG, "doAfterReturn " + pleaseDo);
 
         if (pleaseDo.contains("refresh entire list")) {
             if (!pleaseDo.contains("restore selection")) {
-                selectedPos=-1;
+                selectedPos = -1;
             }
             makeWalklist();
             if (pleaseDo.contains("restore selection") &&
-                    firstVisiblePos>=0) {
+                firstVisiblePos >= 0) {
                 walklist.setSelection(firstVisiblePos);
             }
-            pleaseDo="";
+            pleaseDo = "";
             return;
         }
         if (pleaseDo.contains("refresh selected item")) {
             updateSelectedItem();
-            pleaseDo="";
+            pleaseDo = "";
             return;
         }
     }
@@ -436,73 +500,70 @@ public class MainActivity extends AppCompatActivity {
                                      final String timeZoneId, boolean withConfirmation,
                                      final int afInGalleryNumber) {
         if (withConfirmation) {
-            long timeFinish=0;
-            Cursor cursor=DB.db.query(DB.TABLE_WALKS,new String[]{DB.KEY_STARTTIME, DB.KEY_DURATION},
-                    DB.KEY_ID+"="+walkId, null, null, null, null);
-                cursor.moveToFirst();
-                timeFinish=cursor.getLong(cursor.getColumnIndex(DB.KEY_STARTTIME))+
-                        cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION));
+            long timeFinish = 0;
+            Cursor cursor = DB.db.query(DB.TABLE_WALKS, new String[]{DB.KEY_STARTTIME, DB.KEY_DURATION},
+                DB.KEY_ID + "=" + walkId, null, null, null, null);
+            cursor.moveToFirst();
+            timeFinish = cursor.getLong(cursor.getColumnIndex(DB.KEY_STARTTIME)) +
+                cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION));
             cursor.close();
 
             String s;
-            double timeAfterFinish=(System.currentTimeMillis()-timeFinish)/1e+3;
-            if (timeAfterFinish>3600*24*365) {
-                s=String.format(activity.getResources().getString(R.string.format_walk_resume_warning_years),
-                        timeAfterFinish/(3600*24*365));
-            } else if (timeAfterFinish>3600*24*30.5) {
-                s=String.format(activity.getResources().getString(R.string.format_walk_resume_warning_months),
-                        timeAfterFinish/(3600*24*30.5));
-            } else if (timeAfterFinish>3600*24) {
-                s=String.format(activity.getResources().getString(R.string.format_walk_resume_warning_days),
-                        timeAfterFinish/(3600*24));
+            double timeAfterFinish = (System.currentTimeMillis() - timeFinish) / 1e+3;
+            if (timeAfterFinish > 3600 * 24 * 365) {
+                s = String.format(activity.getResources().getString(R.string.format_walk_resume_warning_years),
+                    timeAfterFinish / (3600 * 24 * 365));
+            } else if (timeAfterFinish > 3600 * 24 * 30.5) {
+                s = String.format(activity.getResources().getString(R.string.format_walk_resume_warning_months),
+                    timeAfterFinish / (3600 * 24 * 30.5));
+            } else if (timeAfterFinish > 3600 * 24) {
+                s = String.format(activity.getResources().getString(R.string.format_walk_resume_warning_days),
+                    timeAfterFinish / (3600 * 24));
             } else {
                 showWalkOnMap(activity, walkId, mode, timeZoneId, false, afInGalleryNumber);
                 return;
             }
             new AlertDialog.Builder(activity)
-                    .setMessage(s)
-                    .setPositiveButton(android.R.string.yes,
-                            new DialogInterface.OnClickListener() {
-                                public void onClick(DialogInterface dialog, int which) {
-                                    showWalkOnMap(activity, walkId, mode,
-                                            timeZoneId, false, afInGalleryNumber);
-                                }
-                            })
-                    .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.dismiss();
-                        }
+                .setMessage(s)
+                .setPositiveButton(android.R.string.yes,
+                    (dialog, which) -> {
+                            showWalkOnMap(activity, walkId, mode,
+                                timeZoneId, false, afInGalleryNumber);
                     })
-                    .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
+                .setNegativeButton(android.R.string.no,
+                    (dialog, which) -> {
+                        dialog.dismiss();
+                    })
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
             return;
         }
 
-        Utils.logD(TAG, "showWalkOnMap: "+activity.getLocalClassName());
+        Utils.logD(TAG, "showWalkOnMap: " + activity.getLocalClassName());
         if (activity.getLocalClassName().endsWith("MapActivity")) {
             ((MapActivity) activity).enterResumeMode();
         } else {
             Intent intent = new Intent(activity, MapActivity.class);
             intent.putExtra("walkId", walkId)
-                    .putExtra("mode", mode)
-                    .putExtra("timeZoneId", timeZoneId)
-                    .putExtra("afInGalleryNumber", afInGalleryNumber)
-                    .putExtra("calledFrom", activity.getLocalClassName());
-            intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                .putExtra("mode", mode)
+                .putExtra("timeZoneId", timeZoneId)
+                .putExtra("afInGalleryNumber", afInGalleryNumber)
+                .putExtra("calledFrom", activity.getLocalClassName());
+            intent.setFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             activity.startActivity(intent);
         }
     }
 
     void updateSelectedItem() {
-        Utils.logD(TAG, "updateSelectedItem "+selectedPos+" "+walkId);
+        Utils.logD(TAG, "updateSelectedItem " + selectedPos + " " + walkId);
 
-        String[] arrayColumns=new String[]{DB.KEY_ICONAFID,
-                DB.KEY_COMMENT, DB.KEY_DURATION, DB.KEY_LENGTH, DB.KEY_STARTPLACE};
-        Cursor cursor=DB.db.query(DB.TABLE_WALKS, arrayColumns,
-                DB.KEY_ID+"="+walkId, null, null, null, null);
+        String[] arrayColumns = new String[]{DB.KEY_ICONAFID,
+            DB.KEY_COMMENT, DB.KEY_DURATION, DB.KEY_LENGTH, DB.KEY_STARTPLACE};
+        Cursor cursor = DB.db.query(DB.TABLE_WALKS, arrayColumns,
+            DB.KEY_ID + "=" + walkId, null, null, null, null);
         if (cursor.moveToFirst()) { // if на всякий случай
             updatedIcons[selectedPos] =
-                    formIcon(walkId, cursor.getLong(cursor.getColumnIndex(DB.KEY_ICONAFID)));
+                formIcon(walkId, cursor.getLong(cursor.getColumnIndex(DB.KEY_ICONAFID)));
             updatedIcons2[selectedPos] = true; // Правильная иконка в updatedIcons
             String s = cursor.getString(cursor.getColumnIndex(DB.KEY_COMMENT));
             if (s.isEmpty()) {
@@ -518,52 +579,52 @@ public class MainActivity extends AppCompatActivity {
     void selectItem(int position, View view) {
         Utils.logD(TAG, "selectItem " + position);
 
-        selectedPos=position;
-        if (selectedPos>=0) {
-            if (selectedPos>=walklist.getCount()) {
-                selectedPos=walklist.getCount()-1;
+        selectedPos = position;
+        if (selectedPos >= 0) {
+            if (selectedPos >= walklist.getCount()) {
+                selectedPos = walklist.getCount() - 1;
             }
-            Cursor cursor=(Cursor) walklist.getItemAtPosition(selectedPos);
-            walkId=cursor.getInt(cursor.getColumnIndex(DB.KEY_ID));
+            Cursor cursor = (Cursor) walklist.getItemAtPosition(selectedPos);
+            walkId = cursor.getInt(cursor.getColumnIndex(DB.KEY_ID));
 
-            if (selectedView==null) {  // В начале единственный способ найти selectedView
-                for (int i=0; i<=walklist.getChildCount(); i++) {
-                    if (walklist.getChildAt(i)!=null &&
-                            walklist.getChildAt(i).getTag(R.id.tag_walkIsSelected)!=null) {
-                        selectedView=walklist.getChildAt(i);
+            if (selectedView == null) {  // В начале единственный способ найти selectedView
+                for (int i = 0; i <= walklist.getChildCount(); i++) {
+                    if (walklist.getChildAt(i) != null &&
+                        walklist.getChildAt(i).getTag(R.id.tag_walkIsSelected) != null) {
+                        selectedView = walklist.getChildAt(i);
                     }
                 }
             }
-            if (selectedView!=null && selectedView!=view) {
-                paintItem(selectedView,false);
+            if (selectedView != null && selectedView != view) {
+                paintItem(selectedView, false);
                 selectedView.setTag(R.id.tag_walkIsSelected, null);
             }
-            selectedView=view;
-            if (selectedView!=null) {
-                paintItem(selectedView,true);
+            selectedView = view;
+            if (selectedView != null) {
+                paintItem(selectedView, true);
                 selectedView.setTag(R.id.tag_walkIsSelected, "*");  // Отмечаем чтобы потом найти и стереть
             }
         }
     }
 
-    static void walkInfo (Activity activity, int walkId, int mode) {
-        WalkInfoDialogFragment dlg=new WalkInfoDialogFragment();
-        Bundle args=new Bundle();
+    static void walkInfo(Activity activity, int walkId, int mode) {
+        WalkInfoDialogFragment dlg = new WalkInfoDialogFragment();
+        Bundle args = new Bundle();
         args.putInt("walkId", walkId);
         args.putInt("mode", mode);
         dlg.setArguments(args);
         dlg.show(activity.getFragmentManager(), "dlg");
     }
 
-    void walkFilter () {
-        DialogFragment dlg=new WalkFilterDialogFragment();
+    void walkFilter() {
+        DialogFragment dlg = new WalkFilterDialogFragment();
         dlg.setArguments(filterParms);
         dlg.show(getFragmentManager(), "dlg");
     }
 
     static void settings(Activity activity, int walkId) {
-        Intent intent=new Intent(activity, SettingsActivity.class);
-        String preferencesFileName=walkId<0 ?
+        Intent intent = new Intent(activity, SettingsActivity.class);
+        String preferencesFileName = walkId < 0 ?
             activity.getPackageName() + "_preferences" : "CurrentWalk";
         intent.putExtra("walkId", walkId).putExtra("preferencesFileName", preferencesFileName);
         activity.startActivityForResult(intent, SETTINGS_REQUEST_CODE);
@@ -580,47 +641,48 @@ public class MainActivity extends AppCompatActivity {
     }
 
     Bitmap formIcon(long walkId, long afId) {
-        Utils.logD(TAG,"formIcon "+walkId+" "+afId);
+        Utils.logD(TAG, "formIcon " + walkId + " " + afId);
 
-        Bitmap bitmap=null;
-        int nAFs=0;  // Общее число артефактов
+        Bitmap bitmap = null;
+        int nAFs = 0;  // Общее число артефактов
 
         Cursor cursor;
-        cursor=DB.db.query(DB.TABLE_AFS,
-                new String[]{DB.KEY_AFID,DB.KEY_AFKIND,DB.KEY_AFURI,DB.KEY_AFFILEPATH},
+        cursor = DB.db.query(DB.TABLE_AFS,
+            new String[]{DB.KEY_AFID, DB.KEY_AFKIND, DB.KEY_AFURI, DB.KEY_AFFILEPATH},
 //                             DB.KEY_AFDELETED},
-                DB.KEY_AFWALKID+"="+walkId+" AND "+DB.KEY_AFDELETED+"=0",
-                null,null,null,
-                DB.KEY_AFID);
-        boolean isFirst=true;
-        while (isFirst && cursor!=null && cursor.moveToFirst() ||
-                !isFirst && cursor.moveToNext()) {
-            String s=cursor.getString(cursor.getColumnIndex(DB.KEY_AFFILEPATH));
-            if (s!=null && !(new File(s).exists())) {
+            DB.KEY_AFWALKID + "=" + walkId + " AND " + DB.KEY_AFDELETED + "=0",
+            null, null, null,
+            "INSTR('41'," + DB.KEY_AFKIND + ") DESC");  // Фото, видео, остальное...
+        boolean isFirst = true;
+        while (isFirst && cursor != null && cursor.moveToFirst() ||
+            !isFirst && cursor.moveToNext()) {
+            isFirst = false;
+
+            String s = cursor.getString(cursor.getColumnIndex(DB.KEY_AFFILEPATH));
+            if (s != null && !(new File(s).exists())) {  // Файл убит снаружи
                 continue;
             }
-            isFirst=false;
 
-            if (bitmap==null) {
-                if (afId>=0 && afId==cursor.getInt(cursor.getColumnIndex(DB.KEY_AFID)) || afId<0) {
-                    afId=cursor.getInt(cursor.getColumnIndex(DB.KEY_AFID));
-                    int afKind=cursor.getInt(cursor.getColumnIndex(DB.KEY_AFKIND));
-                    if (afKind==Walk.AFKIND_PHOTO || afKind==Walk.AFKIND_VIDEO) {
+            if (bitmap == null) {
+                if (afId >= 0 && afId == cursor.getInt(cursor.getColumnIndex(DB.KEY_AFID)) || afId < 0) {
+                    afId = cursor.getInt(cursor.getColumnIndex(DB.KEY_AFID));
+                    int afKind = cursor.getInt(cursor.getColumnIndex(DB.KEY_AFKIND));
+                    if (afKind == Walk.AFKIND_PHOTO || afKind == Walk.AFKIND_VIDEO) {
                         bitmap = MyMarker.decodeBitmap(null, 0, afKind,
-                                cursor.getString(cursor.getColumnIndex(DB.KEY_AFURI)),
-                                cursor.getString(cursor.getColumnIndex(DB.KEY_AFFILEPATH)),
-                                getResources().getDimensionPixelSize(R.dimen.listviewitem_height1), false);
-                        if (afKind==Walk.AFKIND_VIDEO) {
-                            bitmap=MyMarker.addOverlayOnBitmap(bitmap, this.getResources(),
-                                    R.drawable.overlay_play);
+                            cursor.getString(cursor.getColumnIndex(DB.KEY_AFURI)),
+                            cursor.getString(cursor.getColumnIndex(DB.KEY_AFFILEPATH)),
+                            getResources().getDimensionPixelSize(R.dimen.listviewitem_height1), false);
+                        if (afKind == Walk.AFKIND_VIDEO) {
+                            bitmap = MyMarker.addOverlayOnBitmap(bitmap, this.getResources(),
+                                R.drawable.overlay_play);
                         }
                         bitmap = MyMarker.cropCircle(bitmap);
                     } else {
                         bitmap = MyMarker.decodeBitmap(getResources(),
-                                afKind == Walk.AFKIND_SPEECH ? R.drawable.ic_point_speech2 : R.drawable.ic_point_text2,
-                                0, null, null,
-                                getResources().getDimensionPixelSize(R.dimen.listviewitem_height1),
-                                false);
+                            afKind == Walk.AFKIND_SPEECH ? R.drawable.ic_point_speech2 : R.drawable.ic_point_text2,
+                            0, null, null,
+                            getResources().getDimensionPixelSize(R.dimen.listviewitem_height1),
+                            false);
                     }
                 }
             }
@@ -628,60 +690,69 @@ public class MainActivity extends AppCompatActivity {
         }
         cursor.close();
 
-        ContentValues values=new ContentValues();
-        if (bitmap==null) {
+        ContentValues values = new ContentValues();
+        if (bitmap == null) {
             values.put(DB.KEY_ICON, ""); // Массив длиной 1, первый элемент - 0 !
             values.put(DB.KEY_ICONAFID, -1);
-            DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID+"="+walkId, null);
+            DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID + "=" + walkId, null);
             return null;
         }
-        if (nAFs>0) {   // Добавляем число артефактов
-            bitmap = MyMarker.addTextOnIcon(bitmap, ""+nAFs, 1, Color.BLACK, 0);  // В левый верхний угол контрастным цветом
+        if (nAFs > 0) {   // Добавляем число артефактов
+            bitmap = MyMarker.addTextOnIcon(bitmap, "" + nAFs, 1, Color.BLACK, 0);  // В левый верхний угол контрастным цветом
         }
         // Сохраняем сформированную иконку
-        ByteArrayOutputStream stream=new ByteArrayOutputStream(Utils.byteSizeOf(bitmap));
+        ByteArrayOutputStream stream = new ByteArrayOutputStream(Utils.byteSizeOf(bitmap));
         bitmap.compress(Bitmap.CompressFormat.PNG, 0, stream);
         values.put(DB.KEY_ICON, stream.toByteArray());
         values.put(DB.KEY_ICONAFID, afId);
-        DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID+"="+walkId, null);
+        DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID + "=" + walkId, null);
+
         return bitmap;
     }
 
     void condenseAFs() {
         new Thread(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        int i=DB.db.delete(DB.TABLE_AFS, DB.KEY_AFDELETED+"=1", null);
-                    }
-                }, "gfCondenseAFs").start();
+            new Runnable() {
+                @Override
+                public void run() {
+                    int i = DB.db.delete(DB.TABLE_AFS, DB.KEY_AFDELETED + "=1", null);
+                }
+            }, "gfCondenseAFs").start();
     }
 
     String formDesc(Cursor cursor) {
         return Walk.formTotalStr(globalSettings,
-                cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION)),
-                cursor.getLong(cursor.getColumnIndex(DB.KEY_LENGTH)),
-                0,0,
-                cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION)), // Чтобы не писал скорость
-                0,0,0,null);
+            cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION)),
+            cursor.getLong(cursor.getColumnIndex(DB.KEY_LENGTH)),
+            0, 0,
+            cursor.getLong(cursor.getColumnIndex(DB.KEY_DURATION)), // Чтобы не писал скорость
+            0, 0, 0, null);
     }
 
     static String secondStr(String timeZoneId, Long startTime, String startPlace) {
-        String s=Utils.timeStr(startTime,TimeZone.getTimeZone(timeZoneId));
-        if (startPlace!=null && !startPlace.contains("NoAddress")) {
-            s+=" "+startPlace;
+        String s = Utils.timeStr(startTime, TimeZone.getTimeZone(timeZoneId));
+        if (startPlace != null && !startPlace.contains("NoAddress")) {
+            s += " " + startPlace;
         }
         return s;
     }
 
     static void showHelp(Activity activity) {
-        Intent intent=new Intent(activity, HelpActivity.class);
+        Intent intent = new Intent(activity, HelpActivity.class);
         activity.startActivity(intent);
     }
 
     static void showPrivacyPolicy(Activity activity) {
-        Uri uri = Uri.parse(activity.getResources().getString(R.string.url_privacy_policy));
-        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+        Intent intent = new Intent(Intent.ACTION_VIEW,
+            Uri.parse(activity.getResources().getString(R.string.url_privacy_policy)));
+        activity.startActivity(intent);
+    }
+
+    @SuppressLint("WrongConstant")
+    static void showAppDetails(Activity activity) {
+        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.parse("package:" + activity.getPackageName()));
+        intent.setFlags(0x10008000);  // Не знаю что значит
         activity.startActivity(intent);
     }
 }

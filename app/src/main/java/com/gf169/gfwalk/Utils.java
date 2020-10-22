@@ -264,18 +264,17 @@ public class Utils {
     }
 
     public static String locationFullInfStr(Location location, double altPrev, double altIni) {
-        return
-                String.format("%.6f%s%.6f",  // 6-ой знак - 0.1 м
-                        location.getLatitude(), "° ", location.getLongitude()) + "°"
-                        + " " + (location.hasAltitude() ?
-                        Utils.altitudeStr(location.getAltitude(), altPrev, altIni) : "?m")
-                        + " " + (location.hasAccuracy() ?
-                        Utils.accuracyStr(location.getAccuracy()) : "±?")
-                        + " " + (location.hasSpeed() ?
-                        String.format("%.1f", location.getSpeed() * 3.6) : "?") + "km/h"
-                        + " " + (location.hasBearing() ?
-                        String.format("%.0f", location.getBearing()) : "?") + "°"
-                ;
+        return String.format("%.6f%s%.6f",  // 6-ой знак - 0.1 м
+            location.getLatitude(), "° ", location.getLongitude()) + "°"
+            + " " + (location.hasAltitude() ?
+            Utils.altitudeStr(location.getAltitude(), altPrev, altIni) : "?m")
+            + " " + (location.hasAccuracy() ?
+            Utils.accuracyStr(location.getAccuracy()) : "±?")
+            + " " + (location.hasSpeed() ?
+            String.format("%.1f", location.getSpeed() * 3.6) : "?") + "km/h"
+            + " " + (location.hasBearing() ?
+            String.format("%.0f", location.getBearing()) : "?") + "°"
+        ;
     }
 
     public static Long dateTime2Long(String str) {
@@ -487,6 +486,18 @@ public class Utils {
     }
 
     public static void logD(String tag, String msg) {
+
+/*
+        if (msg.startsWith("check")) {
+//        if (tag.equals("gfWalkRecorder")) {
+            String s = getDeviceId() + " " +
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date()) +
+                " " + tag + " " + msg;
+            FALogEvent("logcat","record", s);
+        }
+*/
+
+
         if (BuildConfig.BUILD_TYPE.equals("debug")) {
             Log.d(tag, msg);
 

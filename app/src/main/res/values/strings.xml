@@ -5,6 +5,9 @@
     <string name="action_settings">Settings</string>
     <string name="action_filter">Filter</string>
     <string name="action_new">Let\'s walk</string>
+    <string name="action_help">Help</string>
+    <string name="action_privacy_policy">Privacy policy</string>
+    <string name="action_app_properties">Application properties</string>
     <string name="action_empty_bin">Empty bin</string>
     <string name="format_walk_header">Walk #%d</string>
     <string name="format_walks_deleted">Walks deleted: %d</string>
@@ -14,7 +17,6 @@
     <string name="format_file_has_gone">File %s is missing</string>
     <string name="format_could_not_create_file">Failed to create file %s</string>
     <string name="format_walk_has_gone">The walk #%d is missing!</string>
-    <string name="action_help">Help</string>
 
     <string name="title_activity_maps">Walk #</string>
     <string name="action_camera">Make a photo</string>
@@ -31,11 +33,9 @@
     <string name="action_show_trace">Show trace</string>
     <string name="action_map_type_satelite">Satelite</string>
     <string name="action_map_type_terrain">Terrain</string>
-    <string name="action_privacy_policy">Privacy policy</string>
-    <string name="action_whereami">Show current position</string>
+    <string name="action_whereami">Tom thumb</string>
     <string name="action_live_map">Live map</string>
     <string name="action_autofocus">Autofocus</string>
-
 
     <string name="url_privacy_policy">http://gf169.narod.ru/_tbkp/GFWalk-privacy_policy-en.htm</string>
     <!--string name="url_privacy_policy">goo.gl/tgSLdn</string-->
@@ -162,4 +162,5 @@
     <string name="press_plus">Press + in the action bar to start walk recording</string>
     <string name="goodbye">Goodbye :( Can\'t work without permissions</string>
     <string name="press_back_once_more">To stop walk recording press Back twice</string>
+    <string name="launch_by_icon">Launch the program by icon on the desktop, please</string>
 </resources>

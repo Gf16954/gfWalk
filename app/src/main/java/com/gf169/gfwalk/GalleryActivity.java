@@ -73,9 +73,9 @@ public class GalleryActivity extends AppCompatActivity {
     TextView textPanel;
     TextView commentField;
 
-    int bigPictureHeight=0;
+    int bigPictureHeight = 0;
     int curPosition;
-    boolean fileHasGone=false;
+    boolean fileHasGone = false;
     Menu optionsMenu;
     String comment;
     ContentValues values = new ContentValues();
@@ -87,17 +87,18 @@ public class GalleryActivity extends AppCompatActivity {
 
     boolean isOnClickExecuted;
 
-    static final int WRITE_TEXT_REQUEST_CODE=2;
-    static final int SETTINGS_REQUEST_CODE=9;
+    static final int WRITE_TEXT_REQUEST_CODE = 2;
+    static final int SETTINGS_REQUEST_CODE = 9;
     static final int NUMBER_OF_BITMAPS_FORMED_IN_ADVANCE = 2;
-    static final DisplayMetrics METRICS=Resources.getSystem().getDisplayMetrics();
+    static final DisplayMetrics METRICS = Resources.getSystem().getDisplayMetrics();
 
+    SharedPreferences globalSettings;
     SharedPreferences walkSettings;
 
     Bitmap bitmapNull = BitmapFactory.decodeResource(MyApplication.appContext.getResources(),
-            R.drawable.bmp_null);
+        R.drawable.bmp_null);
     Bitmap bitmapNull2 = BitmapFactory.decodeResource(MyApplication.appContext.getResources(),
-            R.drawable.bmp_null);
+        R.drawable.bmp_null);
 //int m2 = 0; Тест - OutOfMemory
 
     static final String GLOBAL_INTENT_FILTER = "com.gf169.gfwalk.GalleryActivity";
@@ -107,17 +108,17 @@ public class GalleryActivity extends AppCompatActivity {
         Utils.logD(TAG, "onNewIntent");
         super.onNewIntent(intent);
 
-        calledFrom=intent.getStringExtra("calledFrom");
-        afNumber=intent.getExtras().getInt("afInGalleryNumber", 0);
+        calledFrom = intent.getStringExtra("calledFrom");
+        afNumber = intent.getExtras().getInt("afInGalleryNumber", 0);
 
-        if (intent.getExtras().getInt("afSize", walk.AFs.size())>walk.AFs.size()) {// Появились новые точкм - active mode
+        if (intent.getExtras().getInt("afSize", walk.AFs.size()) > walk.AFs.size()) {// Появились новые точкм - active mode
             show(intent.getExtras());  // Появились новые артефакты - полностью перерисовываем
         } else {
-            mode=intent.getExtras().getInt("mode", -1);
-            for (int i=0; i<afNumbers.size(); i=i+1) {
-                if (afNumbers.get(i)==afNumber) {
+            mode = intent.getExtras().getInt("mode", -1);
+            for (int i = 0; i < afNumbers.size(); i = i + 1) {
+                if (afNumbers.get(i) == afNumber) {
                     onGalleryItemClick(null, i, 0,
-                            intent.getExtras().getBoolean("isLongClick", false));
+                        intent.getExtras().getBoolean("isLongClick", false));
                     return;
                 }
             }
@@ -128,20 +129,20 @@ public class GalleryActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         Utils.logD(TAG, "onCreate");
 
-        SharedPreferences globalSettings = SettingsActivity.getCurrentWalkSettings(this, -1);
+        globalSettings = SettingsActivity.getCurrentWalkSettings(this, -1);
         setTheme(MainActivity.getThemeX(globalSettings));
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_gallery);
 
-        MyMarker.curActivity=this;
+        MyMarker.curActivity = this;
         Utils.raiseRestartActivityFlag(this.getLocalClassName(), false);
 
-        Bundle extras=savedInstanceState;
-        if (extras==null) {
-            extras=getIntent().getExtras();
+        Bundle extras = savedInstanceState;
+        if (extras == null) {
+            extras = getIntent().getExtras();
         }
-        calledFrom=extras.getString("calledFrom");
+        calledFrom = extras.getString("calledFrom");
 
         if (show(extras)) {
             registerReceiver(broadcastReceiver, new IntentFilter(GLOBAL_INTENT_FILTER));
@@ -149,57 +150,58 @@ public class GalleryActivity extends AppCompatActivity {
     }
 
     boolean show(Bundle extras) {
-        walkId=extras.getInt("walkId", -1);
-        if (walkId<0) {  // Надо !
+        walkId = extras.getInt("walkId", -1);
+        if (walkId < 0) {  // Надо !
             finish();
             return false;
         }
 
         walkSettings = SettingsActivity.getCurrentWalkSettings(this, walkId);
 
-        mode=extras.getInt("mode", -1);
-        afNumber=extras.getInt("afInGalleryNumber", 0);
-        afParcels=extras.getStringArrayList("afParcels");
-        pointStrs=extras.getStringArrayList("pointStrs");
-        iconPosition=extras.getInt("iconPosition", -2);
-        pointsToRedraw=extras.getString("pointsToRedraw", "");
-        showComments=extras.getBoolean("showComments", true);
-        isLongClick=extras.getBoolean("isLongClick", false);
+        mode = extras.getInt("mode", -1);
+        afNumber = extras.getInt("afInGalleryNumber", 0);
+        afParcels = extras.getStringArrayList("afParcels");
+        pointStrs = extras.getStringArrayList("pointStrs");
+        iconPosition = extras.getInt("iconPosition", -2);
+        pointsToRedraw = extras.getString("pointsToRedraw", "");
+        isLongClick = extras.getBoolean("isLongClick", false);
+        isSelectionMode = extras.getBoolean("isSelectionMode", false);
 
-        walk=new Walk(this,walkId);
+        showComments = globalSettings.getBoolean("showComments", true);
+
+        walk = new Walk(this, walkId);
         afNumbers = new ArrayList<>(afParcels.size());
         bitmaps = new Vector[2];
         bitmaps[0] = new Vector<>(afParcels.size()); // small
         bitmaps[1] = new Vector<>(afParcels.size()); // big
-        for (int i=0; i<afParcels.size(); i++) {
+        for (int i = 0; i < afParcels.size(); i++) {
             walk.AFs.add(walk.new AF(afParcels.get(i))); // !!! walk.new AF
             if (!walk.AFs.get(i).deleted) {  // Не удаленные!!!
                 afNumbers.add(i);  // Этот массив пойдет в адаптер. Содержимое - номера AF в прогулке
-                if (i==afNumber) {
-                    curPosition=afNumbers.size()-1;
+                if (i == afNumber) {
+                    curPosition = afNumbers.size() - 1;
                 }
                 bitmaps[0].add(null);
                 bitmaps[1].add(null);
             }
         }
 
-        isSelectionMode = extras.getBoolean("isSelectionMode", false);
         if (isSelectionMode) {
             switchSelectionMode(true, false, extras.getString("markedItems", null));
         }
 
-        if (iconPosition==-2) { // Не передан
+        if (iconPosition == -2) { // Не передан
             DB.dbInit(this);
-            Cursor cursor=DB.db.query(DB.TABLE_WALKS, new String[]{DB.KEY_ICONAFID},
-                    DB.KEY_ID+"="+walkId, null, null, null, null);
+            Cursor cursor = DB.db.query(DB.TABLE_WALKS, new String[]{DB.KEY_ICONAFID},
+                DB.KEY_ID + "=" + walkId, null, null, null, null);
             cursor.moveToFirst();
-            long i=cursor.getLong(cursor.getColumnIndex(DB.KEY_ICONAFID));
-            for (int j=0; j<afNumbers.size(); j++) {
-                if (walk.AFs.get(afNumbers.get(j)).afId==i) {
-                    iconPosition=j;
-                    if (afNumber==-2) {
-                        curPosition=j;
-                        afNumber=afNumbers.get(j);
+            long i = cursor.getLong(cursor.getColumnIndex(DB.KEY_ICONAFID));
+            for (int j = 0; j < afNumbers.size(); j++) {
+                if (walk.AFs.get(afNumbers.get(j)).afId == i) {
+                    iconPosition = j;
+                    if (afNumber == -2) {
+                        curPosition = j;
+                        afNumber = afNumbers.get(j);
                     }
                     break;
                 }
@@ -207,25 +209,27 @@ public class GalleryActivity extends AppCompatActivity {
             cursor.close();
         }
 
-        if (afNumber<0) {  // На всякий...
-            curPosition=0;
-            afNumber=afNumbers.get(0);
+        if (afNumber < 0) {  // На всякий...
+            curPosition = 0;
+            afNumber = afNumbers.get(0);
         }
 
-        bigPicture=findViewById(R.id.imageviewBigPicture);
+        bigPicture = findViewById(R.id.imageviewBigPicture);
         bigPicture.setOnTouchListener(new OnSwipeTouchListener(this) {
             @Override
             public boolean onSwipeLeft() {
                 toNextAF(1);
                 return true;
             }
+
             @Override
             public boolean onSwipeRight() {
                 toNextAF(-1);
                 return true;
             }
+
             @Override
-            public boolean onClick(){
+            public boolean onClick() {
                 viewAF(walk.AFs.get(afNumber));
                 return true;
             }
@@ -236,15 +240,15 @@ public class GalleryActivity extends AppCompatActivity {
         commentField.setVisibility(showComments ? View.VISIBLE : View.INVISIBLE);
 
         gallery = findViewById(R.id.gallerySnapshotList);
-        gallery.getLayoutParams().height=METRICS.heightPixels *
-                Integer.parseInt(walkSettings.getString("gallery_ribbon_height","10")) / 100;
+        gallery.getLayoutParams().height = METRICS.heightPixels *
+            Integer.parseInt(walkSettings.getString("gallery_ribbon_height", "10")) / 100;
         gallery.setAdapter(new ImageAdapter());
         gallery.setOnItemClickListener((parent, view, position, id) -> {
             if (isSelectionMode) {
                 setMarked((ImageView) view, !markedItems.get(position));
             } else {
                 onGalleryItemClick(view, position, 0, true);
-                        // walk.AFs.get(afNumbers.get(position)).kind == Walk.AFKIND_SPEECH);
+                // walk.AFs.get(afNumbers.get(position)).kind == Walk.AFKIND_SPEECH);
             }
         });
         gallery.setOnItemLongClickListener((parent, view, position, id) -> {
@@ -259,6 +263,7 @@ public class GalleryActivity extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 onGalleryItemSelected(view, position);
             }
+
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
@@ -269,10 +274,10 @@ public class GalleryActivity extends AppCompatActivity {
         vto.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
             public boolean onPreDraw() {
                 bigPicture.getViewTreeObserver().removeOnPreDrawListener(this);
-                bigPictureHeight=bigPicture.getMeasuredHeight();
+                bigPictureHeight = bigPicture.getMeasuredHeight();
                 // Только здесь известна высота !
                 onGalleryItemClick(null, curPosition, 0, false); //isLongClick);  // longClick в карте
-                isLongClick=false; // Имеет смысл только в первом запуске show
+                isLongClick = false; // Имеет смысл только в первом запуске show
                 return true;
             }
         });
@@ -287,21 +292,25 @@ public class GalleryActivity extends AppCompatActivity {
         public int getCount() {
             return afNumbers.size();
         }
+
         @Override
         public Object getItem(int position) {
             return position; // ???
         }
+
         @Override
         public long getItemId(int position) {
             return position;
         }
+
         @Override
         public View getView(final int position, View convertView, ViewGroup parent) {
             ImageView imageView = new ImageView(GalleryActivity.this);
             imageView.setTag(position); // position в адаптере
             drawAF(imageView, afNumbers.get(position), parent.getLayoutParams().height, 0,
-                    position == curPosition, isSelectionMode ? markedItems.get(position) : false);
-           return imageView;
+                position == curPosition, isSelectionMode ? markedItems.get(position) : false,
+                position == iconPosition);
+            return imageView;
         }
     }
 
@@ -313,30 +322,30 @@ public class GalleryActivity extends AppCompatActivity {
         if (walk.AFs.get(afNumbers.get(position)).deleted) {
             return;
         }
-        if (curPosition!=position) {
+        if (curPosition != position) {
             saveComment();
-            ImageView view=gallery.findViewWithTag(curPosition);
-            if (view!=null) { // Если картинка на экране, убираем рамку
+            ImageView view = gallery.findViewWithTag(curPosition);
+            if (view != null) { // Если картинка на экране, убираем рамку
                 addTempOverlay(view, R.drawable.overlay_border_default);
             }
-            curPosition=position;
-            afNumber=afNumbers.get(curPosition);
+            curPosition = position;
+            afNumber = afNumbers.get(curPosition);
             showComment();
             updateOptionsMenu();
         }
         gallery.setSelection(curPosition);
         Walk.AF af = walk.AFs.get(afNumber);
         setTitle(pointStrs.get(af.pointNumber));
-        drawAF(bigPicture, afNumber, 0, direction, false, false);
+        drawAF(bigPicture, afNumber, 0, direction, false, false, false);
 
-        if (v==null) { // Swipe большой картинки
+        if (v == null) { // Swipe большой картинки
             v = gallery.findViewWithTag(curPosition);
         }
-        if (v!=null) {
+        if (v != null) {
             addTempOverlay((ImageView) v, R.drawable.overlay_border_selected);
         }
         if (toPlay && // Видео и речь сразу показываем
-                (af.kind==Walk.AFKIND_VIDEO || af.kind==Walk.AFKIND_SPEECH)) {
+            (af.kind == Walk.AFKIND_VIDEO || af.kind == Walk.AFKIND_SPEECH)) {
             viewAF(af);
         }
     }
@@ -406,8 +415,7 @@ public class GalleryActivity extends AppCompatActivity {
 
     void addTempOverlay(ImageView v, int DrawableResId) {
         Bitmap b = ((BitmapDrawable) v.getDrawable()).getBitmap();
-        b = b.copy(Bitmap.Config.ARGB_8888, true);  // Сохраняем исходную
-        b = MyMarker.addOverlayOnBitmap(b, this.getResources(), DrawableResId);
+        b = MyMarker.addOverlayOnBitmap(b, this.getResources(), DrawableResId); // На месте
         v.setImageBitmap(b);
     }
 
@@ -435,8 +443,8 @@ public class GalleryActivity extends AppCompatActivity {
                     drawMark(v, false);
                 }
             } else {
-                drawAF(v, afNumbers.get(position),
-                        0, 0, position == curPosition, false);
+                drawAF(v, afNumbers.get(position),0, 0,
+                    position == curPosition, false, position == iconPosition);
             }
         }
     }
@@ -451,7 +459,7 @@ public class GalleryActivity extends AppCompatActivity {
         savedInstanceState.putInt("afInGalleryNumber", afNumber);
         if (deletedAFNumbers != null) {  // Что-то удалили - udate'им .deleted
             afParcels = new ArrayList<>(walk.AFs.size());
-            for (int k=0; k<walk.AFs.size(); k++) {
+            for (int k = 0; k < walk.AFs.size(); k++) {
                 afParcels.add(walk.AFs.get(k).toString());
             }
         }
@@ -460,7 +468,6 @@ public class GalleryActivity extends AppCompatActivity {
         savedInstanceState.putInt("curPosition", curPosition);
         savedInstanceState.putInt("iconPosition", iconPosition);
         savedInstanceState.putString("pointsToRedraw", pointsToRedraw);
-        savedInstanceState.putBoolean("showComments", showComments);
         savedInstanceState.putString("calledFrom", calledFrom);
 
         savedInstanceState.putBoolean("isSelectionMode", isSelectionMode);
@@ -475,19 +482,19 @@ public class GalleryActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         Utils.logD(TAG, "onCreateOptionsMenu");
 
-        if (walkId<0) {  // Надо !
+        if (walkId < 0) {  // Надо !
             return true;
         }
-        MenuInflater inflater=getMenuInflater();
+        MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.gallery_activity_actions, menu);
-        optionsMenu=menu;
+        optionsMenu = menu;
         updateOptionsMenu();
         return super.onCreateOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        Utils.logD(TAG, "onOptionsItemSelected "+item.getTitle());
+        Utils.logD(TAG, "onOptionsItemSelected " + item.getTitle());
 
         switch (item.getItemId()) {
             case R.id.action_map:
@@ -506,9 +513,10 @@ public class GalleryActivity extends AppCompatActivity {
                 MainActivity.walkInfo(this, walkId, mode);
                 return true;
             case R.id.action_show_comments:
-                showComments=!showComments;
+                showComments = !showComments;
                 commentField.setVisibility(showComments ? View.VISIBLE : View.INVISIBLE);
                 item.setChecked(showComments);
+                globalSettings.edit().putBoolean("showCoomments", showComments).apply();
                 break;
             case R.id.action_settings:
                 MainActivity.settings(this, walkId);
@@ -533,7 +541,7 @@ public class GalleryActivity extends AppCompatActivity {
         Utils.logD(TAG, "finish " + afNumber);
 
         saveComment();
-        if (afNumber>=0) {
+        if (afNumber >= 0) {
             sendBroadcast(new Intent(MapActivity.GLOBAL_INTENT_FILTER)
                 .putExtra("action", "updateFromGallery")
                 .putExtra("afInGalleryNumber", afNumber));
@@ -543,12 +551,12 @@ public class GalleryActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(
-            int requestCode, int resultCode, Intent data) {
+        int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         switch (requestCode) {
             case WRITE_TEXT_REQUEST_CODE:
-                drawAF(bigPicture, afNumber, 0, 0, false, false);
+                drawAF(bigPicture, afNumber, 0, 0, false, false, false);
                 break;
             case SETTINGS_REQUEST_CODE:
                 break;
@@ -557,7 +565,7 @@ public class GalleryActivity extends AppCompatActivity {
 
     @Override
     public boolean onSupportNavigateUp() {  // Шаг влево, шаг вправо - побег.
-                                            // У Main'a android:launchMode="singleTop"
+        // У Main'a android:launchMode="singleTop"
         Utils.logD(TAG, "onSupportNavigateUp");
 
         if (isSelectionMode) {
@@ -582,10 +590,10 @@ public class GalleryActivity extends AppCompatActivity {
 
         finish();
         if (!calledFrom.endsWith("MainActivity")) {
-            Intent intent=new Intent(this, MapActivity.class);
+            Intent intent = new Intent(this, MapActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    .putExtra("afInGalleryNumber", afNumber)
-                    .putExtra("calledFrom", "MainActivity"); // Чтобы вернулся в нее
+                .putExtra("afInGalleryNumber", afNumber)
+                .putExtra("calledFrom", "MainActivity"); // Чтобы вернулся в нее
             startActivity(intent);
         }
     }
@@ -597,16 +605,15 @@ public class GalleryActivity extends AppCompatActivity {
         }
     }
 
-
     private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            String action=intent.getStringExtra("action");
-            Utils.logD(TAG, "Got a global message - "+action);
+            String action = intent.getStringExtra("action");
+            Utils.logD(TAG, "Got a global message - " + action);
 
             if ("finish".equals(action)) { // from MapActivity when pressed Up
                 finish();
-                Intent intent2=new Intent(context,MainActivity.class);  // В некотрых случаях вываливается в рабочий стол
+                Intent intent2 = new Intent(context, MainActivity.class);  // В некотрых случаях вываливается в рабочий стол
                 intent2.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP); // На всякий случай
                 startActivity(intent2);
@@ -615,130 +622,103 @@ public class GalleryActivity extends AppCompatActivity {
     };
 
     void updateOptionsMenu() {
-        if (optionsMenu!=null) {
+        if (optionsMenu != null) {
             optionsMenu.findItem(R.id.action_show_comments)
-                    .setChecked(showComments);
+                .setChecked(showComments);
         }
     }
 
     void drawAF(ImageView imageView, int afNumber, int height, int direction,
-                boolean isSelected, boolean isMarked) {
+                boolean isSelected, boolean isMarked, boolean isIcon) {
         Utils.logD(TAG, "drawAF " + imageView.getTag() + " " + afNumber + " " + height + " "
-                + direction + " " + isSelected + " " + isMarked);
+            + direction + " " + isSelected + " " + isMarked);
 
-        if (height<=0) height=imageView.getHeight();
-        Utils.logD(TAG, "Drawing "+(imageView==bigPicture ? "big" : "small") +
-                " picture #"+afNumber+", height - "+height);
+        if (height <= 0) height = imageView.getHeight();
+        Utils.logD(TAG, "drawAF Drawing " + (imageView == bigPicture ? "big" : "small") +
+            " picture #" + afNumber + ", height - " + height);
 
-        Walk.AF af=walk.AFs.get(afNumber);
+        Walk.AF af = walk.AFs.get(afNumber);
 
-        if (imageView==bigPicture) {
+        if (imageView == bigPicture) {
             textPanel.setText(null);
-            if (!af.deleted && af.kind==Walk.AFKIND_TEXT) {
+            if (!af.deleted && af.kind == Walk.AFKIND_TEXT) {
                 StringBuilder s = new StringBuilder();
                 String s2;
                 try {
-                    BufferedReader reader=new BufferedReader(new InputStreamReader(
-                            new FileInputStream(new File(af.filePath))));
-                    while ((s2=reader.readLine())!=null) s.append(s2).append("\n");
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(
+                        new FileInputStream(new File(af.filePath))));
+                    while ((s2 = reader.readLine()) != null) s.append(s2).append("\n");
                     reader.close();
                     textPanel.setText(s);
                     imageView.setImageBitmap(null);
                     return;
-                } catch (Exception e)  {// И пойдет дальше - нарисует иконку с карандашем
+                } catch (Exception e) {// И пойдет дальше - нарисует иконку с карандашем
                 }
             }
         }
 
-        int iKind = imageView==bigPicture ? 1 : 0;
+        int iKind = imageView == bigPicture ? 1 : 0;
         int position = afNumbers.indexOf(afNumber);
         if (bitmaps[iKind].get(position) == null) {
-            formBitmap(af, height, imageView==bigPicture, position);
+            formBitmap(af, height, imageView == bigPicture, position);
         } else {
             Utils.logD(TAG, "drawAF bitmap is " +
-                    (bitmaps[iKind].get(position) == bitmapNull ? "beeing formed" : "formed before"));
-            while (bitmaps[iKind].get(position) == bitmapNull) {} // Ждем пока нарисует
+                (bitmaps[iKind].get(position) == bitmapNull ? "beeing formed" : "formed before"));
+            while (bitmaps[iKind].get(position) == bitmapNull) {
+            } // Ждем пока нарисует
         }
         Bitmap bitmap = bitmaps[iKind].get(position);
         Utils.logD(TAG, "drawAF bitmap is ready - " + bitmap);
 
-        int m = 0;
-        int k = 1;
-        for (int j = position + k; k < afNumbers.size(); j = position + k) {
-            // Заранее формируем - по очереди в обе стороны
-            k = k > 0 ? -k : -k + 1;
-            if (j<0 || j >= afNumbers.size()) {
-                continue;
+        if (imageView != bigPicture) {
+            bitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);  // Исходную не трогаем!
+
+            bitmap = MyMarker.addOverlayOnBitmap(bitmap, this.getResources(),
+                isSelected ? R.drawable.overlay_border_selected : R.drawable.overlay_border_default);
+            if (isSelectionMode && !af.deleted) {
+                bitmap = MyMarker.addOverlayOnBitmap(bitmap, this.getResources(),
+                    isMarked ? R.drawable.overlay_marked_true : R.drawable.overlay_marked_false);
             }
-
-            int afNumber2 = afNumbers.get(j);
-            if (!walk.AFs.get(afNumber2).deleted && bitmaps[iKind].get(j) == null) {
-                int height2 = height;
-                int j2 = j;
-                new Thread(() -> {
-                    formBitmap(walk.AFs.get(afNumber2), height2,
-                            imageView == bigPicture, j2);
-                }, "formBitmap" + afNumber2).start();
-                if (bitmaps[iKind].get(j2) == bitmapNull) {
-                    bitmaps[iKind].set(j2, null);
-                    break;
-                }
-
-                if (m++ > NUMBER_OF_BITMAPS_FORMED_IN_ADVANCE) break;  // ToDo
+            if (isIcon) {
+                bitmap = MyMarker.addTextOnIcon(bitmap, getResources().getString(R.string.af_walk_icon_sign), 4, Color.GREEN);
             }
         }
 
-        if (!af.deleted && new File(walk.AFs.get(afNumber).filePath).exists()) {
-            if (af.kind==Walk.AFKIND_VIDEO) {
-                if (imageView!=bigPicture) {
-                    String s = getPlayDuration(af);
-                    if (s != null) {
-                        bitmap = MyMarker.addTextOnIcon(bitmap, s, 0, Color.TRANSPARENT);
-                    } else {
-                        bitmap = MyMarker.addOverlayOnBitmap(bitmap, this.getResources(), R.drawable.overlay_play);
-                    }
-                }
-            }
-            if (af.kind==Walk.AFKIND_SPEECH) {
-                if (imageView!=bigPicture) {
-                    String s = getPlayDuration(af);
-                    if (s != null) {
-                        bitmap = MyMarker.addTextOnIcon(bitmap, s, 0, Color.WHITE);
-                    }
-                }
-            }
-            if (imageView==bigPicture) {
-                fileHasGone=false;
-            } else if (iconPosition>=0 && afNumber==afNumbers.get(iconPosition)) {
-                bitmap=MyMarker.addTextOnIcon(bitmap,getResources().getString(R.string.af_walk_icon_sign),
-                        4, Color.GREEN);
-            }
-        } else {
-            bitmap=MyMarker.addTextOnIcon(bitmap,
-                    af.deleted ? getResources().getString(R.string.af_deleted) :
-                            getResources().getString(R.string.af_has_gone),
-                    0, Color.RED);
-            if (imageView==bigPicture) {
-                fileHasGone=true;
-                MainActivity.pleaseDo = MainActivity.pleaseDo + " refresh selected item"; // Чтобы пересчитал артефакты
-            }
-        }
-
-        if (direction!=0) {
+        if (direction != 0) {
             Utils.logD(TAG, "drawAF animation started");
             switchImage(imageView, bitmap, direction);
         } else {
             imageView.setImageBitmap(bitmap);
         }
 
-        if (imageView!=bigPicture) {
-            addTempOverlay(imageView,
-                isSelected ? R.drawable.overlay_border_selected : R.drawable.overlay_border_default);
-            if (isSelectionMode && !af.deleted) {
-                addTempOverlay(imageView,
-                    isMarked ? R.drawable.overlay_marked_true : R.drawable.overlay_marked_false);
+        Utils.logD(TAG, "drawAF Forming bitmaps in advance");
+
+        int height2 = height;
+        new Thread(() -> {
+            int m = 0;
+            int k = 1;
+            for (int j = position + k; k < afNumbers.size(); j = position + k) {
+                // Заранее формируем - по очереди в обе стороны
+                k = k > 0 ? -k : -k + 1;
+                if (j < 0 || j >= afNumbers.size()) {
+                    continue;
+                }
+
+                int afNumber2 = afNumbers.get(j);
+                if (!walk.AFs.get(afNumber2).deleted && bitmaps[iKind].get(j) == null) {
+                    int j2 = j;
+                    new Thread(() -> {
+                        formBitmap(walk.AFs.get(afNumber2), height2,
+                            imageView == bigPicture, j2);
+                    }, "formBitmap" + afNumber2).start();
+                    if (bitmaps[iKind].get(j2) == bitmapNull) {
+                        bitmaps[iKind].set(j2, null);
+                        break;
+                    }
+                    if (m++ > NUMBER_OF_BITMAPS_FORMED_IN_ADVANCE) break;  // ToDo
+                }
             }
-        }
+        }, "formBitmap").start();
 
         Utils.logD(TAG, "drawAF ended");
     }
@@ -756,14 +736,38 @@ public class GalleryActivity extends AppCompatActivity {
         try {
             if (af.kind == Walk.AFKIND_SPEECH && isBigPicture) {
                 bitmap = MyMarker.decodeBitmap(getResources(), R.drawable.ic_point_speech2,   // Без рамки
-                        0, null, null, height, false);
-            } else if ((af.kind==Walk.AFKIND_PHOTO || af.kind==Walk.AFKIND_VIDEO) && !af.deleted) {
-                bitmap=MyMarker.decodeBitmap(null, 0,
-                        af.kind, af.uri, af.filePath, height, isBigPicture);
+                    0, null, null, height, false);
+            } else if ((af.kind == Walk.AFKIND_PHOTO || af.kind == Walk.AFKIND_VIDEO) && !af.deleted) {
+                bitmap = MyMarker.decodeBitmap(null, 0,
+                    af.kind, af.uri, af.filePath, height, isBigPicture);
             }
-            if (bitmap==null) {
-                bitmap=MyMarker.decodeBitmap(getResources(), MyMarker.mmoA[af.kind].iconResources[0],
-                        0, null, null, height,false);
+            if (bitmap != null) {
+                if (!af.deleted && new File(walk.AFs.get(afNumber).filePath).exists()) {
+                    if (!isBigPicture) {
+                        if (af.kind == Walk.AFKIND_VIDEO) {
+                            String s = getPlayDuration(af);
+                            if (s != null) {
+                                bitmap = MyMarker.addTextOnIcon(bitmap, s, 0, Color.TRANSPARENT);
+                            } else {
+                                bitmap = MyMarker.addOverlayOnBitmap(bitmap, this.getResources(), R.drawable.overlay_play);
+                            }
+                        } else if (af.kind == Walk.AFKIND_SPEECH) {
+                            String s = getPlayDuration(af);
+                            if (s != null) {
+                                bitmap = MyMarker.addTextOnIcon(bitmap, s, 0, Color.WHITE);
+                            }
+                        }
+                    }
+                } else {
+                    bitmap = MyMarker.addTextOnIcon(bitmap,
+                        af.deleted ? getResources().getString(R.string.af_deleted) : getResources().getString(R.string.af_has_gone),
+                        0, Color.RED);
+                        MainActivity.pleaseDo = MainActivity.pleaseDo + " refresh selected item"; // Чтобы пересчитал артефакты
+                }
+
+            } else {
+                bitmap = MyMarker.decodeBitmap(getResources(), MyMarker.mmoA[af.kind].iconResources[0],
+                    0, null, null, height, false);
             }
 /*
 m2++;
@@ -773,15 +777,17 @@ if (m2 % 15 == 0) {
     m2 += 1/0;
 }
 */
-        } catch(OutOfMemoryError e) {
+        } catch (OutOfMemoryError e) {
 //        } catch(Exception e) {
             for (int i = 0; i < bitmaps[0].size(); i++) {
-                for (int j = 0; j <2 ; j++) {
+                for (int j = 0; j < 2; j++) {
                     Bitmap b = bitmaps[j].get(i);
                     if (b == bitmapNull) continue;
                     if (b == null) continue;
-                    if (gallery.findViewWithTag(i) != null) continue; // Фигурирет ни в каком-то view
-                    if (j == 1 && ((BitmapDrawable) bigPicture.getDrawable()).getBitmap() == b) continue;
+                    if (gallery.findViewWithTag(i) != null)
+                        continue; // Фигурирет ни в каком-то view
+                    if (j == 1 && ((BitmapDrawable) bigPicture.getDrawable()).getBitmap() == b)
+                        continue;
 
                     bitmaps[j].set(i, null);
                     b.recycle();
@@ -789,7 +795,7 @@ if (m2 % 15 == 0) {
                 }
             }
             formBitmap(af, height, isBigPicture, position); // Еще раз
-        } catch(Exception e) { // ???
+        } catch (Exception e) { // ???
             bitmap = bitmapNull2;
         }
 
@@ -799,18 +805,33 @@ if (m2 % 15 == 0) {
 
     void switchImage(final ImageView imageView, final Bitmap bitmap, int dir) {
         final Animation anim_out = AnimationUtils.loadAnimation(this,
-                dir>0 ? R.anim.slide_out_left : R.anim.slide_out_right);
-        final Animation anim_in  = AnimationUtils.loadAnimation(this,
-                dir>0 ? R.anim.slide_in_right : R.anim.slide_in_left);
+            dir > 0 ? R.anim.slide_out_left : R.anim.slide_out_right);
+        final Animation anim_in = AnimationUtils.loadAnimation(this,
+            dir > 0 ? R.anim.slide_in_right : R.anim.slide_in_left);
         anim_out.setAnimationListener(new Animation.AnimationListener() {
-            @Override public void onAnimationStart(Animation animation) {}
-            @Override public void onAnimationRepeat(Animation animation) {}
-            @Override public void onAnimationEnd(Animation animation) {
+            @Override
+            public void onAnimationStart(Animation animation) {
+            }
+
+            @Override
+            public void onAnimationRepeat(Animation animation) {
+            }
+
+            @Override
+            public void onAnimationEnd(Animation animation) {
                 imageView.setImageBitmap(bitmap);
                 anim_in.setAnimationListener(new Animation.AnimationListener() {
-                    @Override public void onAnimationStart(Animation animation) {}
-                    @Override public void onAnimationRepeat(Animation animation) {}
-                    @Override public void onAnimationEnd(Animation animation) {}
+                    @Override
+                    public void onAnimationStart(Animation animation) {
+                    }
+
+                    @Override
+                    public void onAnimationRepeat(Animation animation) {
+                    }
+
+                    @Override
+                    public void onAnimationEnd(Animation animation) {
+                    }
                 });
                 imageView.startAnimation(anim_in);
             }
@@ -821,12 +842,13 @@ if (m2 % 15 == 0) {
     }
 
     void viewAF(Walk.AF af) {
-        Utils.logD(TAG, "viewAF "+af);
+        Utils.logD(TAG, "viewAF " + af);
 
-        if (fileHasGone) return;
+        if (af.deleted || !new File(walk.AFs.get(afNumber).filePath).exists())
+            return;
 
-        Intent intent=new Intent();
-        if (af.kind==Walk.AFKIND_TEXT) {
+        Intent intent = new Intent();
+        if (af.kind == Walk.AFKIND_TEXT) {
 //            intent.setAction(android.content.Intent.ACTION_EDIT);
 //            intent.setDataAndType(Uri.parse(af.uri),"text/plain");
             intent = new Intent(this, EditTextActivity.class);
@@ -844,38 +866,38 @@ if (m2 % 15 == 0) {
     void showComment() {
         DB.dbInit(this);
         Cursor cursor = DB.db.query(DB.TABLE_AFS, new String[]{DB.KEY_AFCOMMENT},
-                DB.KEY_AFID+"="+walk.AFs.get(afNumber).afId,
-                null, null, null,null);
+            DB.KEY_AFID + "=" + walk.AFs.get(afNumber).afId,
+            null, null, null, null);
         cursor.moveToFirst();
-        comment=cursor.getString(cursor.getColumnIndex(DB.KEY_AFCOMMENT));
+        comment = cursor.getString(cursor.getColumnIndex(DB.KEY_AFCOMMENT));
         cursor.close();
-        comment=Utils.nvl(comment, "");
+        comment = Utils.nvl(comment, "");
         commentField.setText(comment);
 
 
-        ImageSpan span = new ImageSpan(this,R.drawable.hint_write,
-                ImageSpan.ALIGN_BOTTOM);
+        ImageSpan span = new ImageSpan(this, R.drawable.hint_write,
+            ImageSpan.ALIGN_BOTTOM);
         SpannableStringBuilder ssb = new SpannableStringBuilder("          ");  // !!!
-        ssb.setSpan(span,0,1, Spannable.SPAN_INCLUSIVE_INCLUSIVE );
+        ssb.setSpan(span, 0, 1, Spannable.SPAN_INCLUSIVE_INCLUSIVE);
         commentField.setHint(ssb);
 
 
     }
 
     void saveComment() {
-        if (comment!=null && !comment.equals(commentField.getText().toString())) {
-            values.put(DB.KEY_AFCOMMENT, (comment=commentField.getText().toString()));
+        if (comment != null && !comment.equals(commentField.getText().toString())) {
+            values.put(DB.KEY_AFCOMMENT, (comment = commentField.getText().toString()));
             DB.db.update(DB.TABLE_AFS, values,
-                    DB.KEY_AFID+"="+walk.AFs.get(afNumber).afId, null);
+                DB.KEY_AFID + "=" + walk.AFs.get(afNumber).afId, null);
         }
-        if (commentField!=null) {
+        if (commentField != null) {
             commentField.clearFocus();
         }
     }
 
     boolean toNextAF(int dir) {
-        for (int i=curPosition+dir;
-             i>=0 && i<afNumbers.size(); i=i+dir) {
+        for (int i = curPosition + dir;
+             i >= 0 && i < afNumbers.size(); i = i + dir) {
             if (!walk.AFs.get(afNumbers.get(i)).deleted) {
                 onGalleryItemClick(null, i, dir, false);
                 return true;
@@ -885,28 +907,28 @@ if (m2 % 15 == 0) {
     }
 
     void deleteAF() {
-        if (isSelectionMode && markedCount==0)
+        if (isSelectionMode && markedCount == 0)
             return;
 
-        PopupMenu popup=new PopupMenu(this,gallery);
+        PopupMenu popup = new PopupMenu(this, gallery);
         popup.getMenuInflater()
-                .inflate(R.menu.gallery_activity_delete_modes, popup.getMenu());
+            .inflate(R.menu.gallery_activity_delete_modes, popup.getMenu());
         popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             public boolean onMenuItemClick(MenuItem item) {
-                deleteAF2(item.getItemId()==R.id.mode2);
+                deleteAF2(item.getItemId() == R.id.mode2);
                 return true;
             }
         });
         popup.setOnDismissListener(new PopupMenu.OnDismissListener() {
             public void onDismiss(PopupMenu popup) {
-                if (isSelectionMode && markedCount>1) {
+                if (isSelectionMode && markedCount > 1) {
                     drawMarkedCount(false);
                 }
             }
         });
         popup.show();
 
-        if (isSelectionMode && markedCount>1) {
+        if (isSelectionMode && markedCount > 1) {
             drawMarkedCount(true);
         }
     }
@@ -915,7 +937,7 @@ if (m2 % 15 == 0) {
         deletedAFNumbers = "";
 
         if (isSelectionMode) {
-            for (int i=0; i<markedItems.size(); i++) {
+            for (int i = 0; i < markedItems.size(); i++) {
                 if (markedItems.get(i)) {
                     deleteAF3(afNumbers.get(i), toDeleteFile);
                     deletedAFNumbers += afNumbers.get(i) + " ";
@@ -925,29 +947,28 @@ if (m2 % 15 == 0) {
         } else {
             deleteAF3(afNumber, toDeleteFile);
             drawAF((ImageView) gallery.findViewWithTag(curPosition), afNumber,
-                    0, 0, true, true);
-            drawAF(bigPicture, afNumber, 0, 0, false, false);
+                0, 0, true, true, false);
+            drawAF(bigPicture, afNumber, 0, 0, false, false, false);
             deletedAFNumbers = afNumber + "";
         }
 
-        if (iconPosition>=0 && walk.AFs.get(afNumbers.get(iconPosition)).deleted) {
-            iconPosition=-1;
-            setWalkIcon(iconPosition);  // Записываем в базу
+        if (iconPosition >= 0 && walk.AFs.get(afNumbers.get(iconPosition)).deleted) {
+            setWalkIcon(iconPosition = -1);  // Записываем в базу
         }
         if (walk.AFs.get(afNumbers.get(curPosition)).deleted) {
             if (!toNextAF(1) && !toNextAF(-1)) {
                 Toast.makeText(this, getResources().getString(R.string.nothing_to_show),
-                        Toast.LENGTH_SHORT).show();
+                    Toast.LENGTH_SHORT).show();
                 afNumber = -1;
             }
         }
-                // Update'им карту
-        String deletedAFPointNumbers=" ";
+        // Update'им карту
+        String deletedAFPointNumbers = " ";
         for (String s : deletedAFNumbers.split(" ")) {
             int afNumber = Integer.parseInt(s);
 
             String s2 = walk.AFs.get(afNumber).pointNumber + ":" +
-                        walk.AFs.get(afNumber).kind + " ";
+                walk.AFs.get(afNumber).kind + " ";
             if (!deletedAFPointNumbers.contains(" " + s2))
                 deletedAFPointNumbers += s2;
         }
@@ -956,10 +977,10 @@ if (m2 % 15 == 0) {
             .putExtra("deletedAFNumbers", deletedAFNumbers)
             .putExtra("deletedAFPointNumbers", deletedAFPointNumbers.substring(1))
             .putExtra("afInGalleryNumber", afNumber)
-            );
+        );
 
-        MainActivity.pleaseDo=MainActivity.pleaseDo+" refresh selected item";
-        if (afNumber<0) { // Все удалили
+        MainActivity.pleaseDo = MainActivity.pleaseDo + " refresh selected item";
+        if (afNumber < 0) { // Все удалили
             finish();
         }
     }
@@ -967,15 +988,15 @@ if (m2 % 15 == 0) {
     void deleteAF3(int afNumber, boolean toDeleteFile) {
         if (toDeleteFile) {
             new File(walk.AFs.get(afNumber).filePath).delete();
-            if (walk.AFs.get(afNumber).kind!=Walk.AFKIND_TEXT) {
-                getContentResolver().delete(Uri.parse(walk.AFs.get(afNumber).uri),null,null);
+            if (walk.AFs.get(afNumber).kind != Walk.AFKIND_TEXT) {
+                getContentResolver().delete(Uri.parse(walk.AFs.get(afNumber).uri), null, null);
             }
         }
-        ContentValues values=new ContentValues();
+        ContentValues values = new ContentValues();
         values.put(DB.KEY_AFDELETED, true);
-        DB.db.update(DB.TABLE_AFS, values, DB.KEY_AFID+"="+walk.AFs.get(afNumber).afId, null);
+        DB.db.update(DB.TABLE_AFS, values, DB.KEY_AFID + "=" + walk.AFs.get(afNumber).afId, null);
 
-        walk.AFs.get(afNumber).deleted=true;
+        walk.AFs.get(afNumber).deleted = true;
 
         if (toDeleteFile) { // Нарисует фотоаппарат со словом Удален, иначе только добавит слово
             int i = afNumbers.indexOf(afNumber);
@@ -983,9 +1004,9 @@ if (m2 % 15 == 0) {
             bitmaps[1].set(i, null);
         }
 
-        if (iconPosition>=0 && afNumber==afNumbers.get(iconPosition)) {
-            Toast.makeText(this,getResources().getString(R.string.warning_icon_delete),
-                    Toast.LENGTH_LONG).show();
+        if (iconPosition >= 0 && afNumber == afNumbers.get(iconPosition)) {
+            Toast.makeText(this, getResources().getString(R.string.warning_icon_delete),
+                Toast.LENGTH_LONG).show();
         }
     }
 
@@ -994,7 +1015,7 @@ if (m2 % 15 == 0) {
         if (isSelectionMode) {
             sendIntent.setAction(Intent.ACTION_SEND_MULTIPLE);
             ArrayList<Uri> uris = new ArrayList<>();
-            for (int i=0; i<markedItems.size(); i++) {
+            for (int i = 0; i < markedItems.size(); i++) {
                 if (markedItems.get(i)) {
                     uris.add(Uri.parse(walk.AFs.get(afNumbers.get(i)).uri));
                 }
@@ -1013,35 +1034,37 @@ if (m2 % 15 == 0) {
     }
 
     void setWalkIcon(int position) {
-        View view;
-        if (iconPosition>=0 && // Стираем слово
-                (view=gallery.findViewWithTag(iconPosition))!=null) { // картинка на экране
-            int i=iconPosition;
-            iconPosition=-1;
-            drawAF((ImageView)view, afNumbers.get(i), 0, 0, false, false);
+        if (position != iconPosition) {
+            View view;
+            if (iconPosition >= 0 && // Стираем слово
+                (view = gallery.findViewWithTag(iconPosition)) != null) { // картинка на экране
+                drawAF((ImageView) view, afNumbers.get(iconPosition), 0, 0,
+                    false, isSelectionMode && markedItems.get(iconPosition), false);
+            }
+            iconPosition = position;
+            if (iconPosition >= 0) { // Пишем слово
+                drawAF((ImageView) gallery.findViewWithTag(iconPosition),
+                    afNumbers.get(iconPosition), 0, 0,
+                    true, isSelectionMode && markedItems.get(iconPosition), true);
+            }
         }
-        iconPosition=position;
-        if (iconPosition>=0) { // Пишем слово
-            drawAF((ImageView) gallery.findViewWithTag(iconPosition),
-                    afNumbers.get(iconPosition), 0, 0, true, false);
-        }
-        ContentValues values=new ContentValues();
+        ContentValues values = new ContentValues();
         values.put(DB.KEY_ICONAFID,
-                iconPosition<0 ? -1 : walk.AFs.get(afNumbers.get(iconPosition)).afId);
-        values.put(DB.KEY_ICON,"");  // Признак необходимости сформировать заново
-                DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID + "=" + walkId, null);
-        MainActivity.pleaseDo=MainActivity.pleaseDo+" refresh selected item";
+            iconPosition < 0 ? -1 : walk.AFs.get(afNumbers.get(iconPosition)).afId);
+        values.put(DB.KEY_ICON, "");  // Признак необходимости сформировать заново
+        DB.db.update(DB.TABLE_WALKS, values, DB.KEY_ID + "=" + walkId, null);
+        MainActivity.pleaseDo = MainActivity.pleaseDo + " refresh selected item";
     }
 
     void showWalkOnMap() {
         DB.dbInit(this);
-        Cursor cursor=DB.db.query(DB.TABLE_WALKS, new String[]{DB.KEY_TIMEZONE},
-                DB.KEY_ID+"="+walkId, null, null, null, null);
+        Cursor cursor = DB.db.query(DB.TABLE_WALKS, new String[]{DB.KEY_TIMEZONE},
+            DB.KEY_ID + "=" + walkId, null, null, null, null);
         cursor.moveToFirst();
-        String timeZoneId=cursor.getString(cursor.getColumnIndex(DB.KEY_TIMEZONE));
+        String timeZoneId = cursor.getString(cursor.getColumnIndex(DB.KEY_TIMEZONE));
         cursor.close();
         MainActivity.showWalkOnMap(this, walkId, MapActivity.MODE_PASSIVE,
-                timeZoneId, false, afNumber);
+            timeZoneId, false, afNumber);
     }
 
     @Override
@@ -1055,11 +1078,11 @@ if (m2 % 15 == 0) {
     String getPlayDuration(Walk.AF af) {
         long i = 0;
         Cursor cursor = getContentResolver().query(
-                Uri.parse(af.uri),
-                af.kind==Walk.AFKIND_VIDEO ?
-                        new String[]{MediaStore.Video.VideoColumns.DURATION} :
-                        new String[]{MediaStore.Audio.AudioColumns.DURATION},
-                null, null, null);
+            Uri.parse(af.uri),
+            af.kind == Walk.AFKIND_VIDEO ?
+                new String[]{MediaStore.Video.VideoColumns.DURATION} :
+                new String[]{MediaStore.Audio.AudioColumns.DURATION},
+            null, null, null);
         if (cursor.moveToNext()) {
             i = cursor.getInt(0);
         }

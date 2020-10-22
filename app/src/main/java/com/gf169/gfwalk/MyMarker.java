@@ -32,6 +32,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Random;
 import java.util.Vector;
@@ -424,31 +425,31 @@ class MyMarker {
                         kind, null);
             }
         }
-        if (bitmap==null) { // Нужен большой или Uri почему-то неизвестен или bitmap почему-то не создался - сами создаем из файла
-            if (afKind==Walk.AFKIND_PHOTO) {
-                Utils.logD(TAG,"Decoding image file: "+afFilePath+" "+height);
+        if (bitmap==null && new File(afFilePath).exists()) { // Нужен большой или Uri почему-то неизвестен или bitmap почему-то не создался - сами создаем из файла
+            if (afKind == Walk.AFKIND_PHOTO) {
+                Utils.logD(TAG, "Decoding image file: " + afFilePath + " " + height);
 
                 BitmapFactory.Options bfo = new BitmapFactory.Options();
-                bfo.inJustDecodeBounds=true; // Узнаем размер исходной картинки
+                bfo.inJustDecodeBounds = true; // Узнаем размер исходной картинки
                 BitmapFactory.decodeFile(afFilePath, bfo);
-                bfo.inJustDecodeBounds=false;
-                bfo.inMutable=true;
-                bfo.inTargetDensity=metrics.densityDpi;  // Так ...
+                bfo.inJustDecodeBounds = false;
+                bfo.inMutable = true;
+                bfo.inTargetDensity = metrics.densityDpi;  // Так ...
                 //if (false) {//dontResize) //Глюк? TODO: Не переворачивает. И пропадает ! Разобраться !
                 if (dontResize) {
-                    bfo.inScaled=false;
-                    bfo.inDensity=0;
+                    bfo.inScaled = false;
+                    bfo.inDensity = 0;
                 } else {
-                    bfo.inScaled=true;
-                    bfo.inDensity=bfo.inTargetDensity*bfo.outHeight/height; // и только так !
+                    bfo.inScaled = true;
+                    bfo.inDensity = bfo.inTargetDensity * bfo.outHeight / height; // и только так !
                 }
-                bitmap=BitmapFactory.decodeFile(afFilePath, bfo);
-                bitmap=rotateBitmap(bitmap, afFilePath);
-            } else if (afKind==Walk.AFKIND_VIDEO) {
-                Utils.logD(TAG,"Decoding video file: "+afFilePath+" "+height);
+                bitmap = BitmapFactory.decodeFile(afFilePath, bfo);
+                bitmap = rotateBitmap(bitmap, afFilePath);
+            } else if (afKind == Walk.AFKIND_VIDEO) {
+                Utils.logD(TAG, "Decoding video file: " + afFilePath + " " + height);
 
-                bitmap=ThumbnailUtils.createVideoThumbnail(afFilePath,
-                        MediaStore.Video.Thumbnails.MINI_KIND); // immutable !
+                bitmap = ThumbnailUtils.createVideoThumbnail(afFilePath,
+                    MediaStore.Video.Thumbnails.MINI_KIND); // immutable !
             }
         }
         if (bitmap==null) {
@@ -579,6 +580,20 @@ class MyMarker {
             color=Color.WHITE;
         }
         return color;
+/*
+        Когда я искал лучший способ сделать это, я наткнулся на руководство Adobe Illustrator,
+        в котором упоминается, как они создают дополнительные цвета. Они говорят:
+        Дополнение изменяет каждый компонент цвета на новое значение на основе суммы самых высоких и
+        самых низких значений RGB в выбранном цвете. Illustrator добавляет самые низкие и самые
+        высокие значения RGB текущего цвета, а затем вычитает значение каждого компонента из этого
+        числа, чтобы создать новые значения RGB. Например, предположим, что вы выбрали цвет со
+        значением RGB 102 для красного, 153 для зеленого и 51 для синего.
+        Иллюстратор добавляет высокое (153) и низкое (51) значения, чтобы в итоге получить новое
+        значение (204). Каждое из значений RGB в существующем цвете вычитается из нового значения
+        для создания новых дополнительных значений RGB: 204 – 102 (текущее красное значение) = 102
+        для нового красного значения, 204 – 153 (текущее зеленое значение) = 51 для нового зеленого
+        значения и 204 – 51 (текущее синее значение) = 153 для нового синего значения.
+*/
     }
 
     private static Bitmap rotateBitmap(Bitmap bitmap, String bitmapPath) {

@@ -41,7 +41,7 @@
             android:summary="@string/summary_recording_max_possible_speed"
             android:numeric="integer"
             android:maxLength="4"
-            android:defaultValue="250"
+            android:defaultValue="200"
             app:iconSpaceReserved="false"
             />
     </PreferenceCategory>

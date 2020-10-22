@@ -25,7 +25,11 @@
     <dimen name="walkfilter_textSize1">20dp</dimen>
     <dimen name="walkfilter_textSize2">15dp</dimen>
 
-    <integer name="line_width">3</integer> <!-- dp -->
+    <dimen name="map_buttons_width">50dp</dimen>
+    <dimen name="map_buttons_margin_hor">5dp</dimen>
+    <dimen name="map_buttons_margin_vert">25dp</dimen>
+    <integer name="map_line_width">3</integer> <!-- dp -->
+
     <integer name="text_on_bmp_height">25</integer> <!-- % -->
     <integer name="text_on_bmp_padding">5</integer> <!-- % -->
 </resources>

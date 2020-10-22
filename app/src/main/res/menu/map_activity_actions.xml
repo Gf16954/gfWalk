@@ -88,11 +88,5 @@
           android:enabled="true"
           android:visible="true"
         />
-    <item android:id="@+id/action_privacy_policy"
-          android:title="@string/action_privacy_policy"
-          res-auto:showAsAction="never"
-          android:enabled="true"
-          android:visible="true"
-        />
 </menu>
 

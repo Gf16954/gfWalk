@@ -6,7 +6,7 @@ import android.content.SharedPreferences;
 import android.os.IBinder;
 
 public class Watchdog extends Service {
-    static final String TAG = "Watchdog";
+    static final String TAG = "gfWatchdog";
     static final String ACTION_START = "Start";
     static final String ACTION_STOP = "Stop";
 

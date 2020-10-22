@@ -23,6 +23,10 @@
         android:title="@string/action_help"
         res-auto:showAsAction="never"
         />
+    <item android:id="@+id/action_app_properties"
+        android:title="@string/action_app_properties"
+        res-auto:showAsAction="never"
+        />
     <item android:id="@+id/action_privacy_policy"
         android:title="@string/action_privacy_policy"
         res-auto:showAsAction="never"
